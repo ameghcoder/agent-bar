@@ -65,6 +65,14 @@ With `--apply`:
 
 Restart Claude Code after applying either command.
 
+## Diagnose
+
+```sh
+pnpm agentbar doctor
+```
+
+Read-only. Prints one `PASS`, `WARN`, or `FAIL` line per check (AgentBar and Node versions, state directory and snapshot, Claude settings and AgentBar hooks, GNOME Shell, display session, extensions tool) and exits 1 if a required check fails. Missing optional tools are warnings. Paths are shown relative to `~`; the output never includes hook payloads, session or project names, or settings content, so it is safe to paste into a bug report. `--settings <path>` points it at a different settings file.
+
 `examples/claude-hooks-settings.example.json` is a portable template; replace its placeholder path or use the helper. Config structure and event names follow the [official Claude Code hook reference](https://code.claude.com/docs/en/hooks). It registers the seven matching lifecycle hooks and maps `PostToolUseFailure` and `StopFailure` to AgentBar's `error`; there is no invented Claude hook named `Error`. Older Claude versions may lack `StopFailure`.
 
 ## Observable state

@@ -1,7 +1,11 @@
 #!/usr/bin/env node
 import { Command } from 'commander';
 import { applyInstall, applyUninstall, defaultSettingsPath, type ApplyOptions, type ApplyReport } from '../install/apply.js';
+import { formatReport, runDoctor } from '../doctor/doctor.js';
 import { createHooksConfig, receiverCommand } from '../scripts/install-claude-hooks.js';
+
+const version = '0.1.0';
+const minimumNode = '22.12.0';
 
 interface HookCommandOptions { apply: boolean; settings?: string; backupDir?: string }
 
@@ -32,7 +36,7 @@ function withHookOptions(command: Command): Command {
 const program = new Command()
   .name('agentbar')
   .description('Local Claude Code activity capture for AgentBar')
-  .version('0.1.0')
+  .version(version)
   .showHelpAfterError();
 
 withHookOptions(program.command('install-hooks'))
@@ -57,6 +61,21 @@ Removes only handlers AgentBar generated; other hooks, matcher groups, and
 settings are untouched. Same backup and atomic-write behavior as install-hooks.`)
   .action(async (options: HookCommandOptions) => {
     printReport('remove', await applyUninstall(applyOptions(options)));
+  });
+
+program.command('doctor')
+  .description('Check the local AgentBar integration without changing anything')
+  .option('--settings <path>', 'Claude settings file (default: $CLAUDE_CONFIG_DIR/settings.json, else ~/.claude/settings.json)')
+  .addHelpText('after', `
+Read-only. Reports PASS, WARN, or FAIL per check and exits 1 if any required
+check fails. Output shows paths relative to ~ and never prints hook payloads,
+session names, or settings content.`)
+  .action(async (options: { settings?: string }) => {
+    const checks = await runDoctor({ version, minimumNode, settingsPath: options.settings ?? defaultSettingsPath() });
+    const report = formatReport(checks);
+    console.log(report.stdout);
+    console.error(report.stderr);
+    if (report.failed.length) process.exitCode = 1;
   });
 
 // Commander does not show help for an empty root command by default.

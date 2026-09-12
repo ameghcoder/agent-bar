@@ -51,7 +51,8 @@ as "status unknown/stale", never as a confirmed failure or completion.
 
 - TypeScript/Node project managed by pnpm.
 - Commander commands `agentbar install-hooks [--apply]`,
-  `agentbar uninstall-hooks [--apply]`, and `agentbar-hook --event <event>`.
+  `agentbar uninstall-hooks [--apply]`, `agentbar doctor`, and
+  `agentbar-hook --event <event>`.
 - Supported normalized events: `session_start`, `pre_tool_use`,
   `post_tool_use`, `permission_request`, `notification`, `stop`, `session_end`,
   and `error`.
@@ -63,12 +64,13 @@ as "status unknown/stale", never as a confirmed failure or completion.
   typed malformed/invalid/unsupported-version results.
 - Preview-first hook install and uninstall: pure merge engine, exact-ownership
   matching, timestamped `0600` backup, atomic replace, idempotent.
-- Twenty-eight integration tests, including 24 concurrent hook processes.
+- Read-only `doctor` with pass/warn/fail checks and redacted output.
+- Thirty-one integration tests, including 24 concurrent hook processes and
+  an activation smoke test through an applied settings file.
 
 ## Current gaps
 
 - No GNOME top-bar interface.
-- No read-only doctor command.
 - No explicit permission grant/denial observation.
 - No crash detection, stale presentation, retention, rotation, or history-based
   snapshot repair.
