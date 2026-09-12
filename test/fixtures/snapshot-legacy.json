@@ -1,0 +1,16 @@
+{
+  "updatedAt": "2026-09-11T18:00:00.000Z",
+  "sessions": [
+    {
+      "sessionId": "legacy-1",
+      "projectName": "old",
+      "projectPath": "/home/dev/old",
+      "source": "claude-code",
+      "status": "running",
+      "lastEventType": "pre_tool_use",
+      "lastMessage": "Preparing tool: Edit",
+      "startedAt": "2026-09-11T17:59:00.000Z",
+      "lastSeenAt": "2026-09-11T18:00:00.000Z"
+    }
+  ]
+}

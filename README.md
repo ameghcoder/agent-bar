@@ -73,13 +73,23 @@ Merge the generated event entries into the `hooks` object in `~/.claude/settings
 
 Status describes the last captured event, not a guarantee that the whole task succeeded. A tool error may be followed by recovery. A stop may be followed by another turn. Unknown notifications do not infer activity from message text. This Day 1 subset does not capture thinking before the first tool call, permission decisions themselves, parallel tool aggregation, or process exits without hooks.
 
-Every history record has `id`, `timestamp`, `source`, `projectPath`, `projectName`, `sessionId`, `eventType`, `status`, `message`, and the original parsed `raw` object. IDs are UUIDs; timestamps are local capture times in UTC. Missing `cwd` falls back to the receiver's working directory.
+The snapshot contains `schemaVersion`; history records do not. Every history record has `id`, `timestamp`, `source`, `projectPath`, `projectName`, `sessionId`, `eventType`, `status`, `message`, and the original parsed `raw` object. IDs are UUIDs; timestamps are local capture times in UTC. Missing `cwd` falls back to the receiver's working directory.
 
 ## Storage and failure handling
 
 Default files are `~/.local/state/agentbar/state.json` and `~/.local/state/agentbar/events.jsonl`. `AGENTBAR_STATE_DIR` can override the directory with an absolute path; `XDG_STATE_HOME` is not used. Folders are created automatically. New state directories use mode `0700`; new data files use `0600`.
 
-The snapshot contains `updatedAt` and `sessions`. Each session stores `sessionId`, `projectName`, `projectPath`, `source`, `status`, `lastEventType`, `lastMessage`, `startedAt`, and `lastSeenAt`. `startedAt` means first observation, since capture can begin mid-session. Named session IDs identify rows even when the working directory changes. Ended rows remain available; no retention policy is implemented yet.
+The snapshot contains integer `schemaVersion` (currently `1`), `updatedAt`, and `sessions`. Each session stores `sessionId`, `projectName`, `projectPath`, `source`, `status`, `lastEventType`, `lastMessage`, `startedAt`, and `lastSeenAt`. `startedAt` means first observation, since capture can begin mid-session. Named session IDs identify rows even when the working directory changes. Ended rows remain available; no retention policy is implemented yet.
+
+### Snapshot compatibility
+
+`src/core/snapshot.ts` exports `parseSnapshot(text)`, the one validator for the state contract. It never throws; it returns `{ ok: true, state, legacy }` or `{ ok: false, reason, message }` with `reason` one of `malformed_json`, `invalid_shape`, or `unsupported_version`. Readers such as the GNOME extension must treat every failure as "state unavailable", never as success or failure of a session.
+
+- A snapshot without `schemaVersion` (the pre-versioned beta shape) parses as version 1 with `legacy: true`; the next hook write upgrades the file in place.
+- A snapshot whose `schemaVersion` is anything other than the integer `1` is `unsupported_version`. The hook exits 1 and leaves the file untouched so a newer writer's data is never clobbered.
+- Adding a status, event type, or required field is a contract change and bumps `schemaVersion`.
+
+Fixtures for each case live in `test/fixtures/` (`snapshot-v1.json`, `snapshot-legacy.json`, `snapshot-future.json`, `snapshot-malformed.txt`) so a non-Node reader can test against the same inputs.
 
 Writes use a shared lock, a temporary file, and an atomic rename. The future reader should reopen the snapshot after changes, and watch its directory because the file is replaced. History is appended before the snapshot is replaced. These are two files, not a transaction: a crash between writes can leave history ahead of state, and there is no power-loss durability guarantee or automatic replay yet. Locks abandoned by crashed writers become eligible for recovery after 10 seconds; normal lock contention retries for roughly 12–18 seconds.
 

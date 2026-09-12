@@ -1,54 +1,23 @@
 import { randomUUID } from 'node:crypto';
 import { appendFile, mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import lockfile from 'proper-lockfile';
-import { eventTypes, isRecord, normalizeEvent, statuses, type ClaudeEvent, type EventType, type JsonObject, type Status } from './events.js';
+import { isRecord, normalizeEvent, type ClaudeEvent, type EventType, type JsonObject } from './events.js';
 import { getPaths } from './paths.js';
+import { parseSnapshot, schemaVersion, type AgentBarState, type SessionState } from './snapshot.js';
 
-export interface SessionState {
-  sessionId: string;
-  projectName: string;
-  projectPath: string;
-  source: 'claude-code';
-  status: Status;
-  lastEventType: EventType;
-  lastMessage: string;
-  startedAt: string;
-  lastSeenAt: string;
-}
-
-export interface AgentBarState {
-  updatedAt: string;
-  sessions: SessionState[];
-}
-
-function isDate(value: unknown): value is string {
-  return typeof value === 'string' && Number.isFinite(Date.parse(value));
-}
-
-function isSession(value: unknown): value is SessionState {
-  if (!isRecord(value)) return false;
-  return ['sessionId', 'projectName', 'projectPath', 'lastMessage'].every((key) => typeof value[key] === 'string')
-    && value.source === 'claude-code'
-    && statuses.some((status) => status === value.status)
-    && eventTypes.some((type) => type === value.lastEventType)
-    && isDate(value.startedAt) && isDate(value.lastSeenAt);
-}
+export type { AgentBarState, SessionState } from './snapshot.js';
 
 async function readState(path: string): Promise<AgentBarState> {
   let contents: string;
   try {
     contents = await readFile(path, 'utf8');
   } catch (error) {
-    if (isRecord(error) && error.code === 'ENOENT') return { updatedAt: new Date().toISOString(), sessions: [] };
+    if (isRecord(error) && error.code === 'ENOENT') return { schemaVersion, updatedAt: new Date().toISOString(), sessions: [] };
     throw error;
   }
-  try {
-    const value: unknown = JSON.parse(contents);
-    if (isRecord(value) && isDate(value.updatedAt) && Array.isArray(value.sessions) && value.sessions.every(isSession)) {
-      return { updatedAt: value.updatedAt, sessions: value.sessions };
-    }
-  } catch { /* Report malformed JSON and invalid schemas the same way. */ }
-  throw new Error(`Invalid state file at ${path}. Back it up and move it aside before retrying; existing data was not overwritten.`);
+  const result = parseSnapshot(contents);
+  if (result.ok) return result.state;
+  throw new Error(`Invalid state file at ${path}: ${result.message} Back it up and move it aside before retrying; existing data was not overwritten.`);
 }
 
 export async function captureEvent(type: EventType, raw: JsonObject): Promise<ClaudeEvent> {

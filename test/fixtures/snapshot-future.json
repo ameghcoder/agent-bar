@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 2,
+  "updatedAt": "2027-01-01T00:00:00.000Z",
+  "sessions": [
+    {
+      "sessionId": "future-1",
+      "projectName": "next",
+      "projectPath": "/home/dev/next",
+      "source": "claude-code",
+      "status": "thinking",
+      "lastEventType": "user_prompt_submit",
+      "lastMessage": "Thinking",
+      "startedAt": "2027-01-01T00:00:00.000Z",
+      "lastSeenAt": "2027-01-01T00:00:00.000Z",
+      "turnId": "t-1"
+    }
+  ],
+  "agents": []
+}

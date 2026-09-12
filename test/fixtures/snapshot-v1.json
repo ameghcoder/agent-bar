@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "updatedAt": "2026-09-12T10:00:05.000Z",
+  "sessions": [
+    {
+      "sessionId": "sess-a",
+      "projectName": "alpha",
+      "projectPath": "/home/dev/alpha",
+      "source": "claude-code",
+      "status": "permission_required",
+      "lastEventType": "permission_request",
+      "lastMessage": "Permission requested for Bash",
+      "startedAt": "2026-09-12T09:58:00.000Z",
+      "lastSeenAt": "2026-09-12T10:00:05.000Z"
+    },
+    {
+      "sessionId": "sess-b",
+      "projectName": "beta",
+      "projectPath": "/home/dev/beta",
+      "source": "claude-code",
+      "status": "completed",
+      "lastEventType": "stop",
+      "lastMessage": "Claude finished responding",
+      "startedAt": "2026-09-12T09:30:00.000Z",
+      "lastSeenAt": "2026-09-12T09:59:40.000Z"
+    }
+  ]
+}
