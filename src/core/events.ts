@@ -78,6 +78,17 @@ function activity(type: EventType, raw: JsonObject): { status: Status; message: 
   }
 }
 
+export const activeStatuses: readonly Status[] = ['running', 'waiting', 'permission_required'];
+
+// Claude fires SessionStart for compaction and resume while a turn may still be
+// in flight; only startup/clear mean a genuinely fresh, idle session.
+export function carryActiveStatus(event: ClaudeEvent, previous: { status: Status; lastMessage: string } | undefined): ClaudeEvent {
+  const source = stringField(event.raw, 'source');
+  if (event.eventType !== 'session_start' || (source !== 'compact' && source !== 'resume')) return event;
+  if (!previous || !activeStatuses.includes(previous.status)) return event;
+  return { ...event, status: previous.status, message: previous.lastMessage };
+}
+
 export function normalizeEvent(eventType: EventType, raw: JsonObject): ClaudeEvent {
   const projectPath = resolve(stringField(raw, 'cwd') ?? process.cwd());
   const fallbackId = `unknown:${createHash('sha256').update(projectPath).digest('hex').slice(0, 16)}`;

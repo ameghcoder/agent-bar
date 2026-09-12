@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { appendFile, mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import lockfile from 'proper-lockfile';
-import { isRecord, normalizeEvent, type ClaudeEvent, type EventType, type JsonObject } from './events.js';
+import { carryActiveStatus, isRecord, normalizeEvent, type ClaudeEvent, type EventType, type JsonObject } from './events.js';
 import { getPaths } from './paths.js';
 import { parseSnapshot, schemaVersion, type AgentBarState, type SessionState } from './snapshot.js';
 
@@ -34,9 +34,10 @@ export async function captureEvent(type: EventType, raw: JsonObject): Promise<Cl
   try {
     const state = await readState(paths.state);
     // Timestamp in commit order, after acquiring the lock.
-    const event = normalizeEvent(type, raw);
-    const index = state.sessions.findIndex((session) => session.sessionId === event.sessionId);
+    const normalized = normalizeEvent(type, raw);
+    const index = state.sessions.findIndex((session) => session.sessionId === normalized.sessionId);
     const previous = state.sessions[index];
+    const event = carryActiveStatus(normalized, previous);
     const session: SessionState = {
       sessionId: event.sessionId,
       projectName: event.projectName,

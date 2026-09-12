@@ -186,3 +186,36 @@ test('install helper prints usable JSON; example matches the generator', async (
   const quoted = await run(directory, ['-c', `printf '%s' ${shellQuote(literal)}`], '', '/bin/sh');
   assert.equal(quoted.stdout, literal);
 });
+
+test('session_start from compact or resume keeps an active status instead of resetting to idle', async (t) => {
+  const directory = await temporaryDirectory(t);
+  const base = { session_id: 'carry', cwd: '/home/me/project' };
+  await hook(directory, 'pre_tool_use', { ...base, tool_name: 'Edit' });
+  await hook(directory, 'session_start', { ...base, source: 'compact' });
+  let session = (await readState(directory)).sessions[0];
+  assert.equal(session.status, 'running');
+  assert.equal(session.lastMessage, 'Preparing tool: Edit');
+  assert.equal(session.lastEventType, 'session_start');
+  assert.equal((await readHistory(directory)).at(-1).status, 'running', 'history records the effective status');
+
+  await hook(directory, 'permission_request', { ...base, tool_name: 'Bash' });
+  await hook(directory, 'session_start', { ...base, source: 'resume' });
+  session = (await readState(directory)).sessions[0];
+  assert.equal(session.status, 'permission_required');
+
+  await hook(directory, 'session_start', { ...base, source: 'startup' });
+  assert.equal((await readState(directory)).sessions[0].status, 'idle');
+  await hook(directory, 'pre_tool_use', { ...base, tool_name: 'Edit' });
+  await hook(directory, 'session_start', { ...base, source: 'clear' });
+  assert.equal((await readState(directory)).sessions[0].status, 'idle');
+  await hook(directory, 'pre_tool_use', { ...base, tool_name: 'Edit' });
+  await hook(directory, 'session_start', base);
+  assert.equal((await readState(directory)).sessions[0].status, 'idle', 'missing source keeps prior behavior');
+
+  await hook(directory, 'session_start', { session_id: 'fresh', cwd: '/home/me/other', source: 'compact' });
+  const fresh = (await readState(directory)).sessions.find((s) => s.sessionId === 'fresh');
+  assert.equal(fresh.status, 'idle', 'no previous row: nothing to carry');
+  await hook(directory, 'stop', base);
+  await hook(directory, 'session_start', { ...base, source: 'resume' });
+  assert.equal((await readState(directory)).sessions[0].status, 'idle', 'resume after a completed turn is idle');
+});

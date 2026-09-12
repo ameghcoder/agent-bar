@@ -79,7 +79,7 @@ Read-only. Prints one `PASS`, `WARN`, or `FAIL` line per check (AgentBar and Nod
 
 | AgentBar event | Status |
 | --- | --- |
-| `session_start` | `idle` |
+| `session_start` | `idle` for `source` `startup`, `clear`, or missing; for `compact` or `resume` an active status (`running`, `waiting`, `permission_required`) on the same session is kept, since Claude may still be mid-turn |
 | `pre_tool_use` | `running` (tool about to run) |
 | `post_tool_use` | `running` (tool finished; turn may continue) |
 | `notification` | `permission_required` for `permission_prompt`; `waiting` for `idle_prompt`, elicitation dialogs, or `agent_needs_input`; otherwise `unknown` |
