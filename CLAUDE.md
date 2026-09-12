@@ -111,4 +111,7 @@ decisions live in `docs/adr/`. See `docs/agents/domain.md`.
 - Update task status as `todo`, `in_progress`, `blocked`, or `done`.
 - A task is `done` only after its acceptance criteria and evidence are complete.
 - At milestone gates, stop and give the user a short demo-oriented report.
+- Per task: create or claim the GitHub issue, implement, run the full suite,
+  commit locally with `Closes #n`. Never `git push`. The user reviews the code
+  and pushes manually.
 

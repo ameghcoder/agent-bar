@@ -58,8 +58,8 @@ For each active task (one GitHub issue per task ID):
    exact commands and concise evidence under the task in `.temp/tasks.md`.
 8. Use `/code-review` at every milestone gate. Resolve high-severity findings
    before moving to the next milestone.
-9. Commit only after the milestone gate passes and only when the user asks for
-   a commit.
+9. Commit locally with `Closes #n` once the task's tests pass. Never push;
+   the user reviews and pushes manually after code review.
 
 Use `/diagnosing-bugs` when a failure is not explained after one focused
 inspection. Use `/to-tickets` only when new scope is approved; create GitHub

@@ -56,5 +56,5 @@ Used by `/wayfinder`. The **map** is a single issue with **child** issues as tic
 - `.temp/tasks.md` is gitignored and keeps only the schedule and each task's
   `### Evidence` (exact commands, results, screenshots). Status and blockers
   live on the issue.
-- Commits reference the issue (`Closes #n`). Commit and push only when the
-  user asks.
+- Commits reference the issue (`Closes #n`). Commit locally after the task's
+  tests pass; never push. The user reviews and pushes manually.
