@@ -1,29 +1,17 @@
 import { access } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
-import type { EventType } from '../core/events.js';
+import { installHooks } from '../install/merge.js';
 
-export const hookEvents = {
-  SessionStart: 'session_start',
-  PreToolUse: 'pre_tool_use',
-  PostToolUse: 'post_tool_use',
-  Notification: 'notification',
-  PermissionRequest: 'permission_request',
-  Stop: 'stop',
-  SessionEnd: 'session_end',
-  PostToolUseFailure: 'error',
-  StopFailure: 'error',
-} satisfies Record<string, EventType>;
+export { hookEvents } from '../install/merge.js';
 
 export function shellQuote(value: string): string {
   return `'${value.replaceAll("'", "'\\''")}'`;
 }
 
 export function createHooksConfig(command: string) {
-  return {
-    hooks: Object.fromEntries(Object.entries(hookEvents).map(([name, event]) => [name, [{
-      hooks: [{ type: 'command', command: `${command} --event ${event}`, timeout: 30 }],
-    }]])),
-  };
+  const result = installHooks({}, command);
+  if (!result.ok) throw new Error(result.message);
+  return result.settings;
 }
 
 export async function printHooksConfig(): Promise<void> {
