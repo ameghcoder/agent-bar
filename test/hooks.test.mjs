@@ -219,3 +219,30 @@ test('session_start from compact or resume keeps an active status instead of res
   await hook(directory, 'session_start', { ...base, source: 'resume' });
   assert.equal((await readState(directory)).sessions[0].status, 'idle', 'resume after a completed turn is idle');
 });
+
+test('lastMessage is a short single line and raw message only overrides attention events', async (t) => {
+  const directory = await temporaryDirectory(t);
+  const base = { session_id: 'msg', cwd: '/home/me/project' };
+  const dump = `Traceback (most recent call last):\n  File "/home/me/secret/app.py"\n${'x'.repeat(5000)}\nTOKEN=abc`;
+  await hook(directory, 'error', { ...base, hook_event_name: 'PostToolUseFailure', error: dump });
+  let session = (await readState(directory)).sessions[0];
+  assert.equal(session.lastMessage, 'Traceback (most recent call last):');
+  assert.equal((await readHistory(directory)).at(-1).raw.error, dump, 'raw is untouched');
+
+  await hook(directory, 'error', { ...base, error: `   ${'y'.repeat(300)}   ` });
+  session = (await readState(directory)).sessions[0];
+  assert.equal(session.lastMessage.length, 120);
+  assert.equal(session.lastMessage.endsWith('…'), true);
+
+  await hook(directory, 'error', { ...base, error: '  \n\n  \t ' });
+  assert.equal((await readState(directory)).sessions[0].lastMessage, 'Claude reported an error', 'blank text falls back to the curated label');
+
+  await hook(directory, 'pre_tool_use', { ...base, tool_name: 'Edit', message: 'sneaky override' });
+  assert.equal((await readState(directory)).sessions[0].lastMessage, 'Preparing tool: Edit');
+  await hook(directory, 'stop', { ...base, message: 'sneaky override' });
+  assert.equal((await readState(directory)).sessions[0].lastMessage, 'Claude finished responding');
+  await hook(directory, 'notification', { ...base, notification_type: 'idle_prompt', message: 'Claude is  waiting\nfor you' });
+  assert.equal((await readState(directory)).sessions[0].lastMessage, 'Claude is waiting');
+  await hook(directory, 'permission_request', { ...base, tool_name: 'Bash', message: 'Allow Bash?' });
+  assert.equal((await readState(directory)).sessions[0].lastMessage, 'Allow Bash?');
+});

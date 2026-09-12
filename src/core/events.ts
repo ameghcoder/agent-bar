@@ -54,6 +54,18 @@ function stringField(raw: JsonObject, key: string): string | undefined {
   return typeof value === 'string' && value.trim() ? value : undefined;
 }
 
+export const messageLimit = 120;
+
+// Presentation string: first non-blank line, collapsed whitespace, hard cap.
+export function presentable(text: string | undefined): string | undefined {
+  const line = text?.split('\n').map((part) => part.replace(/\s+/g, ' ').trim()).find(Boolean);
+  if (!line) return undefined;
+  return line.length > messageLimit ? `${line.slice(0, messageLimit - 1)}…` : line;
+}
+
+// Only Claude-authored attention events carry a user-facing message field.
+const messageEvents: readonly EventType[] = ['notification', 'permission_request'];
+
 function activity(type: EventType, raw: JsonObject): { status: Status; message: string } {
   const tool = stringField(raw, 'tool_name') ?? 'tool';
   switch (type) {
@@ -65,7 +77,7 @@ function activity(type: EventType, raw: JsonObject): { status: Status; message: 
     case 'session_end': return { status: 'idle', message: `Session ended: ${stringField(raw, 'reason') ?? 'unspecified'}` };
     case 'error': return {
       status: 'failed',
-      message: stringField(raw, 'error') ?? stringField(raw, 'error_details') ?? 'Claude reported an error',
+      message: presentable(stringField(raw, 'error') ?? stringField(raw, 'error_details')) ?? 'Claude reported an error',
     };
     case 'notification': {
       const kind = stringField(raw, 'notification_type');
@@ -102,7 +114,7 @@ export function normalizeEvent(eventType: EventType, raw: JsonObject): ClaudeEve
     sessionId: stringField(raw, 'session_id') ?? fallbackId,
     eventType,
     status: result.status,
-    message: stringField(raw, 'message') ?? result.message,
+    message: (messageEvents.includes(eventType) ? presentable(stringField(raw, 'message')) : undefined) ?? result.message,
     raw,
   };
 }

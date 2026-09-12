@@ -88,6 +88,8 @@ Read-only. Prints one `PASS`, `WARN`, or `FAIL` line per check (AgentBar and Nod
 | `session_end` | `idle` (session ended) |
 | `error` | `failed` (observed tool or turn failure) |
 
+`lastMessage` is a presentation string: the first non-blank line of the source text, whitespace collapsed, capped at 120 characters. A raw `message` field replaces the generated text only for `notification` and `permission_request`, the events where Claude authors a user-facing message; on every other event it is ignored. For `error`, the first line of `error` or `error_details` is used and the full text stays in `raw` only.
+
 Status describes the last captured event, not a guarantee that the whole task succeeded. A tool error may be followed by recovery. A stop may be followed by another turn. Unknown notifications do not infer activity from message text. This Day 1 subset does not capture thinking before the first tool call, permission decisions themselves, parallel tool aggregation, or process exits without hooks.
 
 The snapshot contains `schemaVersion`; history records do not. Every history record has `id`, `timestamp`, `source`, `projectPath`, `projectName`, `sessionId`, `eventType`, `status`, `message`, and the original parsed `raw` object. IDs are UUIDs; timestamps are local capture times in UTC. Missing `cwd` falls back to the receiver's working directory.
