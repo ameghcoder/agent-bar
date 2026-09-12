@@ -2,7 +2,7 @@
 
 AgentBar is a local-first Ubuntu/GNOME top-bar companion for Claude Code. It will show observable activity while you work in another window.
 
-Current scope: **Day 1 hook capture only**. This repository contains a TypeScript CLI, a JSON state snapshot, and JSONL event history. No GNOME extension, UI, database, server, auth, or progress percentages.
+Current scope: **hook capture and safe hook installation**. This repository contains a TypeScript CLI, a versioned JSON state snapshot, and JSONL event history. No GNOME extension, UI, database, server, auth, or progress percentages.
 
 ## Setup
 
@@ -47,14 +47,23 @@ Without pnpm, the equivalent receiver command is `node /absolute/path/to/agentba
 ## Configure Claude Code
 
 ```sh
-pnpm agentbar install-hooks
-# Save just the generated JSON to a separate file:
-pnpm --silent agentbar install-hooks > /tmp/agentbar-hooks.json
+pnpm agentbar install-hooks            # preview: prints the hooks JSON, changes nothing
+pnpm agentbar install-hooks --apply    # merge into ~/.claude/settings.json after a backup
+pnpm agentbar uninstall-hooks          # preview removal
+pnpm agentbar uninstall-hooks --apply  # remove AgentBar handlers only
 ```
 
-The helper only prints configuration. It uses quoted absolute paths to the current Node executable and built receiver, so hooks work from other projects without pnpm on Claude's PATH. Regenerate if you move the repository or Node installation.
+Without `--apply` nothing is written: the generated hooks JSON goes to stdout and a per-event summary of what would change goes to stderr. Generated commands use quoted absolute paths to the current Node executable and built receiver, so hooks work from other projects without pnpm on Claude's PATH. Regenerate and re-apply if you move the repository or Node installation.
 
-Merge the generated event entries into the `hooks` object in `~/.claude/settings.json` for all projects, or `.claude/settings.local.json` for one project. Append to existing arrays for the same event and preserve other settings. Restart Claude Code after merging. Do not replace an existing settings file with the generated snippet.
+With `--apply`:
+
+- The settings file is `$CLAUDE_CONFIG_DIR/settings.json` if that variable is set, else `~/.claude/settings.json`. Override with `--settings <path>` (for example `.claude/settings.local.json` for one project).
+- The current file must parse as a JSON object with a well-formed `hooks` section, or nothing is changed.
+- If the file exists it is first copied to `<name>.agentbar-backup-<timestamp>-<id>` (mode `0600`) next to it, or under `--backup-dir <dir>`. A backup failure aborts the apply.
+- The new content is written to a temporary file and renamed into place. A new file is `0600`; an existing file keeps its mode minus any group/world write bits.
+- Unrelated settings, other hooks, and matcher groups are preserved. AgentBar adds one handler per Claude event and recognises its own handlers by their exact command shape, so re-applying is a no-op and uninstall never removes a hook it did not create. Containers emptied by an uninstall are pruned; ones that were already empty are left alone.
+
+Restart Claude Code after applying either command.
 
 `examples/claude-hooks-settings.example.json` is a portable template; replace its placeholder path or use the helper. Config structure and event names follow the [official Claude Code hook reference](https://code.claude.com/docs/en/hooks). It registers the seven matching lifecycle hooks and maps `PostToolUseFailure` and `StopFailure` to AgentBar's `error`; there is no invented Claude hook named `Error`. Older Claude versions may lack `StopFailure`.
 

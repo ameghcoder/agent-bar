@@ -50,22 +50,25 @@ as "status unknown/stale", never as a confirmed failure or completion.
 ## Current completed capability
 
 - TypeScript/Node project managed by pnpm.
-- Commander commands `agentbar install-hooks` and
-  `agentbar-hook --event <event>`.
+- Commander commands `agentbar install-hooks [--apply]`,
+  `agentbar uninstall-hooks [--apply]`, and `agentbar-hook --event <event>`.
 - Supported normalized events: `session_start`, `pre_tool_use`,
   `post_tool_use`, `permission_request`, `notification`, `stop`, `session_end`,
   and `error`.
 - Stdin JSON validation, 10 MiB input limit, raw payload preservation, stable
   fallback session IDs, and clear failure behavior.
-- Atomic `state.json`, append-only `events.jsonl`, restrictive permissions,
-  locking, and safe multi-session updates under the XDG state directory.
-- Generated example hook configuration without automatic settings mutation.
-- Nine integration tests, including 24 concurrent hook processes.
+- Atomic `state.json` with integer `schemaVersion`, append-only
+  `events.jsonl`, restrictive permissions, locking, and safe multi-session
+  updates under the XDG state directory; one `parseSnapshot` validator with
+  typed malformed/invalid/unsupported-version results.
+- Preview-first hook install and uninstall: pure merge engine, exact-ownership
+  matching, timestamped `0600` backup, atomic replace, idempotent.
+- Twenty-eight integration tests, including 24 concurrent hook processes.
 
 ## Current gaps
 
 - No GNOME top-bar interface.
-- Hook configuration is not merged into Claude settings automatically.
+- No read-only doctor command.
 - No explicit permission grant/denial observation.
 - No crash detection, stale presentation, retention, rotation, or history-based
   snapshot repair.

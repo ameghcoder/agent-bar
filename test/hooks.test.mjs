@@ -19,7 +19,7 @@ async function temporaryDirectory(t) {
 function run(directory, args, input = '', command = process.execPath) {
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, {
-      env: { ...process.env, AGENTBAR_STATE_DIR: directory },
+      env: { ...process.env, AGENTBAR_STATE_DIR: directory, CLAUDE_CONFIG_DIR: directory },
       stdio: ['pipe', 'pipe', 'pipe'],
     });
     let stdout = '';
