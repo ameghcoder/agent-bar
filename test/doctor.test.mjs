@@ -104,3 +104,23 @@ test('doctor fails on malformed or future snapshots and partial hooks, and warns
   const noDesktop = await run(home, [cli, 'doctor'], { extraEnv: { XDG_SESSION_TYPE: '', XDG_CURRENT_DESKTOP: '' } });
   assert.match(noDesktop.stdout, /WARN +Display session/);
 });
+
+test('doctor fails when hooks point at a receiver that no longer exists', async (t) => {
+  const home = await temporaryHome(t);
+  assert.equal((await run(home, [cli, 'install-hooks', '--apply'])).code, 0);
+  const path = join(home, '.claude', 'settings.json');
+  const settings = JSON.parse(await readFile(path, 'utf8'));
+  for (const groups of Object.values(settings.hooks)) {
+    for (const group of groups) for (const handler of group.hooks) {
+      handler.command = handler.command.replace(/'[^']*\/hooks\/claude-hook\.js'/, "'/old/deleted/agentbar/dist/hooks/claude-hook.js'");
+    }
+  }
+  await writeFile(path, JSON.stringify(settings));
+  const doctor = await run(home, [cli, 'doctor']);
+  assert.equal(doctor.code, 1);
+  assert.match(doctor.stdout, /FAIL +Claude hooks +.*receiver is missing.*install-hooks --apply/);
+  assert.doesNotMatch(doctor.stdout, /\/old\/deleted/, 'receiver path is not echoed');
+
+  assert.equal((await run(home, [cli, 'install-hooks', '--apply'])).code, 0);
+  assert.match((await run(home, [cli, 'doctor'])).stdout, /PASS +Claude hooks/);
+});

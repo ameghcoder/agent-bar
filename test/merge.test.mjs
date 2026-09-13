@@ -73,9 +73,15 @@ test('repeated install is a no-op and existing AgentBar handlers are never dupli
   };
   const result = installHooks(settings, command);
   assert.equal(result.ok, true);
-  assert.equal(result.settings.hooks.Stop.length, 1, 'handler from a moved install still counts as AgentBar');
-  assert.equal(result.settings.hooks.Stop[0].hooks.length, 2);
+  assert.equal(result.changed, true);
+  assert.equal(result.settings.hooks.Stop.length, 1, 'stale handler is replaced in place, not duplicated');
+  assert.deepEqual(result.settings.hooks.Stop[0].hooks, [
+    { type: 'command', command: 'notify-send done' },
+    { type: 'command', command: `${command} --event stop`, timeout: 30 },
+  ]);
+  assert.equal(result.summary.includes('Stop: replace stale AgentBar handler'), true);
   assert.equal(result.settings.hooks.PreToolUse.length, 1);
+  assert.equal(installHooks(result.settings, command).changed, false);
 });
 
 test('uninstall removes AgentBar handlers only and prunes only containers it emptied', () => {

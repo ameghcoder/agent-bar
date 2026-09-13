@@ -61,7 +61,7 @@ With `--apply`:
 - The current file must parse as a JSON object with a well-formed `hooks` section, or nothing is changed.
 - If the file exists it is first copied to `<name>.agentbar-backup-<timestamp>-<id>` (mode `0600`) next to it, or under `--backup-dir <dir>`. A backup failure aborts the apply.
 - The new content is written to a temporary file and renamed into place. A new file is `0600`; an existing file keeps its mode minus any group/world write bits.
-- Unrelated settings, other hooks, and matcher groups are preserved. AgentBar adds one handler per Claude event and recognises its own handlers by their exact command shape, so re-applying is a no-op and uninstall never removes a hook it did not create. Containers emptied by an uninstall are pruned; ones that were already empty are left alone.
+- Unrelated settings, other hooks, and matcher groups are preserved. AgentBar adds one handler per Claude event and recognises its own handlers by their exact command shape, so re-applying is a no-op, a handler left pointing at a moved checkout or replaced Node binary is updated in place, and uninstall never removes a hook it did not create. A symlinked settings file is followed: the link is kept and the target is what changes. Containers emptied by an uninstall are pruned; ones that were already empty are left alone.
 
 Restart Claude Code after applying either command.
 
@@ -79,7 +79,7 @@ Read-only. Prints one `PASS`, `WARN`, or `FAIL` line per check (AgentBar and Nod
 
 | AgentBar event | Status |
 | --- | --- |
-| `session_start` | `idle` for `source` `startup`, `clear`, or missing; for `compact` or `resume` an active status (`running`, `waiting`, `permission_required`) on the same session is kept, since Claude may still be mid-turn |
+| `session_start` | `idle` for `source` `startup`, `clear`, `resume`, or missing; for `compact` (auto-compaction, which can happen mid-turn) an active status (`running`, `waiting`, `permission_required`) on the same session is kept |
 | `pre_tool_use` | `running` (tool about to run) |
 | `post_tool_use` | `running` (tool finished; turn may continue) |
 | `notification` | `permission_required` for `permission_prompt`; `waiting` for `idle_prompt`, elicitation dialogs, or `agent_needs_input`; otherwise `unknown` |

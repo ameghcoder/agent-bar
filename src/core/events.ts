@@ -60,7 +60,8 @@ export const messageLimit = 120;
 export function presentable(text: string | undefined): string | undefined {
   const line = text?.split('\n').map((part) => part.replace(/\s+/g, ' ').trim()).find(Boolean);
   if (!line) return undefined;
-  return line.length > messageLimit ? `${line.slice(0, messageLimit - 1)}…` : line;
+  const points = Array.from(line);
+  return points.length > messageLimit ? `${points.slice(0, messageLimit - 1).join('')}…` : line;
 }
 
 // Only Claude-authored attention events carry a user-facing message field.
@@ -92,11 +93,10 @@ function activity(type: EventType, raw: JsonObject): { status: Status; message: 
 
 export const activeStatuses: readonly Status[] = ['running', 'waiting', 'permission_required'];
 
-// Claude fires SessionStart for compaction and resume while a turn may still be
-// in flight; only startup/clear mean a genuinely fresh, idle session.
+// Auto-compaction fires SessionStart mid-turn; startup, clear, and resume all
+// begin at an empty prompt, so only compact may keep an active status.
 export function carryActiveStatus(event: ClaudeEvent, previous: { status: Status; lastMessage: string } | undefined): ClaudeEvent {
-  const source = stringField(event.raw, 'source');
-  if (event.eventType !== 'session_start' || (source !== 'compact' && source !== 'resume')) return event;
+  if (event.eventType !== 'session_start' || stringField(event.raw, 'source') !== 'compact') return event;
   if (!previous || !activeStatuses.includes(previous.status)) return event;
   return { ...event, status: previous.status, message: previous.lastMessage };
 }

@@ -187,7 +187,7 @@ test('install helper prints usable JSON; example matches the generator', async (
   assert.equal(quoted.stdout, literal);
 });
 
-test('session_start from compact or resume keeps an active status instead of resetting to idle', async (t) => {
+test('session_start from compact keeps an active status; every other source resets to idle', async (t) => {
   const directory = await temporaryDirectory(t);
   const base = { session_id: 'carry', cwd: '/home/me/project' };
   await hook(directory, 'pre_tool_use', { ...base, tool_name: 'Edit' });
@@ -201,7 +201,8 @@ test('session_start from compact or resume keeps an active status instead of res
   await hook(directory, 'permission_request', { ...base, tool_name: 'Bash' });
   await hook(directory, 'session_start', { ...base, source: 'resume' });
   session = (await readState(directory)).sessions[0];
-  assert.equal(session.status, 'permission_required');
+  assert.equal(session.status, 'idle', 'resume always starts at an empty prompt, so a stale permission prompt must not be revived');
+  assert.equal(session.lastMessage, 'Session started');
 
   await hook(directory, 'session_start', { ...base, source: 'startup' });
   assert.equal((await readState(directory)).sessions[0].status, 'idle');
@@ -216,8 +217,8 @@ test('session_start from compact or resume keeps an active status instead of res
   const fresh = (await readState(directory)).sessions.find((s) => s.sessionId === 'fresh');
   assert.equal(fresh.status, 'idle', 'no previous row: nothing to carry');
   await hook(directory, 'stop', base);
-  await hook(directory, 'session_start', { ...base, source: 'resume' });
-  assert.equal((await readState(directory)).sessions[0].status, 'idle', 'resume after a completed turn is idle');
+  await hook(directory, 'session_start', { ...base, source: 'compact' });
+  assert.equal((await readState(directory)).sessions[0].status, 'idle', 'compact after a completed turn has nothing active to carry');
 });
 
 test('lastMessage is a short single line and raw message only overrides attention events', async (t) => {
@@ -233,6 +234,11 @@ test('lastMessage is a short single line and raw message only overrides attentio
   session = (await readState(directory)).sessions[0];
   assert.equal(session.lastMessage.length, 120);
   assert.equal(session.lastMessage.endsWith('…'), true);
+
+  await hook(directory, 'error', { ...base, error: `${'a'.repeat(118)}🚀🚀🚀` });
+  const emoji = (await readState(directory)).sessions[0].lastMessage;
+  assert.equal(emoji, `${'a'.repeat(118)}🚀…`, 'truncation never splits a surrogate pair');
+  assert.equal(emoji.isWellFormed(), true);
 
   await hook(directory, 'error', { ...base, error: '  \n\n  \t ' });
   assert.equal((await readState(directory)).sessions[0].lastMessage, 'Claude reported an error', 'blank text falls back to the curated label');

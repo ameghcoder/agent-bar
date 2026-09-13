@@ -5,7 +5,7 @@ import { promisify } from 'node:util';
 import { isRecord } from '../core/events.js';
 import { getPaths } from '../core/paths.js';
 import { parseSnapshot } from '../core/snapshot.js';
-import { hookEvents, isAgentBarHandler, type ClaudeHookName } from '../install/merge.js';
+import { hookEvents, isAgentBarHandler, ownedPaths, type ClaudeHookName } from '../install/merge.js';
 
 export type CheckLevel = 'pass' | 'warn' | 'fail';
 
@@ -97,17 +97,30 @@ async function checkSettings(path: string): Promise<{ check: Check; settings?: R
   }
 }
 
-function checkHooks(settings: Record<string, unknown> | undefined): Check {
+async function checkHooks(settings: Record<string, unknown> | undefined): Promise<Check> {
   const name = 'Claude hooks';
   const expected = Object.keys(hookEvents) as ClaudeHookName[];
-  const present = expected.filter((event) => {
+  const handlers = new Map<ClaudeHookName, string[]>();
+  for (const event of expected) {
     const groups = isRecord(settings?.hooks) ? settings.hooks[event] : undefined;
-    return Array.isArray(groups) && groups.some((group) => isRecord(group) && Array.isArray(group.hooks) && group.hooks.some(isAgentBarHandler));
-  });
-  if (present.length === expected.length) return { name, level: 'pass', detail: `AgentBar handlers present for all ${expected.length} events.` };
-  const missing = expected.filter((event) => !present.includes(event));
-  if (present.length === 0) return { name, level: 'fail', detail: 'No AgentBar handlers found. Run: agentbar install-hooks --apply' };
-  return { name, level: 'fail', detail: `Missing AgentBar handlers for ${missing.join(', ')}. Run: agentbar install-hooks --apply` };
+    if (!Array.isArray(groups)) continue;
+    const commands = groups.flatMap((group) => (isRecord(group) && Array.isArray(group.hooks) ? group.hooks.filter(isAgentBarHandler) : []))
+      .map((handler) => (handler as { command: string }).command);
+    if (commands.length) handlers.set(event, commands);
+  }
+  if (handlers.size === 0) return { name, level: 'fail', detail: 'No AgentBar handlers found. Run: agentbar install-hooks --apply' };
+  const missing = expected.filter((event) => !handlers.has(event));
+  if (missing.length) return { name, level: 'fail', detail: `Missing AgentBar handlers for ${missing.join(', ')}. Run: agentbar install-hooks --apply` };
+  const targets = new Set([...handlers.values()].flat().map(ownedPaths).flatMap((paths) => (paths ? [paths.node, paths.receiver] : [])));
+  for (const target of targets) {
+    try {
+      await access(target);
+    } catch {
+      const what = target.endsWith('claude-hook.js') ? 'receiver' : 'node executable';
+      return { name, level: 'fail', detail: `A hook's ${what} is missing (moved checkout or Node upgrade?). Run: agentbar install-hooks --apply` };
+    }
+  }
+  return { name, level: 'pass', detail: `AgentBar handlers present for all ${expected.length} events; receiver found.` };
 }
 
 async function checkCommand(name: string, exec: DoctorOptions['exec'], file: string, args: string[], describe: (stdout: string) => string): Promise<Check> {
@@ -140,7 +153,7 @@ export async function runDoctor(options: DoctorOptions): Promise<Check[]> {
     await checkStateDirectory(paths.directory),
     await checkSnapshot(paths.state),
     settings.check,
-    checkHooks(settings.settings),
+    await checkHooks(settings.settings),
     await checkCommand('GNOME Shell', options.exec, 'gnome-shell', ['--version'], (out) => out),
     checkDisplaySession(),
     await checkCommand('GNOME extensions tool', options.exec, 'gnome-extensions', ['version'], (out) => `gnome-extensions ${out}; AgentBar extension check is added with the extension build.`),

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
-import { mkdir, mkdtemp, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
+import { lstat, mkdir, mkdtemp, readdir, readFile, rm, stat, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -161,4 +161,23 @@ test('help explains preview, apply, settings path, and backups for both commands
   const root = await agentbar(directory, ['--help']);
   assert.match(root.stdout, /install-hooks/);
   assert.match(root.stdout, /uninstall-hooks/);
+});
+
+test('apply follows a symlinked settings file: the link survives and the target is what changes', async (t) => {
+  const directory = await temporaryDirectory(t);
+  const dotfiles = join(directory, 'dotfiles');
+  await mkdir(dotfiles);
+  const target = join(dotfiles, 'settings.json');
+  const original = `${JSON.stringify(unrelated, null, 2)}\n`;
+  await writeFile(target, original);
+  const link = join(directory, 'settings.json');
+  await symlink(target, link);
+  const result = await agentbar(directory, ['install-hooks', '--settings', link, '--apply']);
+  assert.equal(result.code, 0, result.stderr);
+  assert.equal((await lstat(link)).isSymbolicLink(), true, 'symlink must survive');
+  assert.equal(Object.keys(JSON.parse(await readFile(target, 'utf8')).hooks).length, 9, 'target received the hooks');
+  assert.deepEqual(await backups(directory), [], 'backup goes next to the real file, not the link');
+  const [backup] = await backups(dotfiles);
+  assert.equal(await readFile(join(dotfiles, backup), 'utf8'), original);
+  assert.match(result.stderr, /dotfiles\/settings\.json/);
 });

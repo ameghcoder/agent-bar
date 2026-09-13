@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { mkdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, realpath, rename, rm, stat, writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { basename, dirname, isAbsolute, join } from 'node:path';
 import { isRecord, type JsonObject } from '../core/events.js';
@@ -43,8 +43,20 @@ async function readSettings(path: string): Promise<{ existed: boolean; text: str
   }
 }
 
+// Dotfile managers symlink settings.json; rename() over the link would replace
+// the link itself, so operate on the real file.
+async function resolveSettingsPath(path: string): Promise<string> {
+  try {
+    return await realpath(path);
+  } catch (error) {
+    if (isRecord(error) && error.code === 'ENOENT') return path;
+    throw error;
+  }
+}
+
 async function run(options: ApplyOptions, merge: (value: unknown) => MergeResult): Promise<ApplyReport> {
-  const { settingsPath, apply } = options;
+  const { apply } = options;
+  const settingsPath = await resolveSettingsPath(options.settingsPath);
   const current = await readSettings(settingsPath);
   const result = merge(current.value);
   if (!result.ok) throw new Error(`Claude settings at ${settingsPath}: ${result.message} Nothing was changed.`);

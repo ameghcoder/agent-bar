@@ -23,15 +23,23 @@ function handlerFor(command: string, event: EventType) {
 // Any install path matches; a user's own script that merely mentions agentbar does not.
 const quotedChars = "(?:[^']|'\\\\'')*";
 const ownedCommand = new RegExp(
-  `^'${quotedChars}' '${quotedChars}/hooks/claude-hook\\.js' --event (?:${eventTypes.join('|')})$`,
+  `^'(${quotedChars})' '(${quotedChars}/hooks/claude-hook\\.js)' --event (?:${eventTypes.join('|')})$`,
 );
 
 export function isAgentBarHandler(value: unknown): boolean {
   return isRecord(value) && value.type === 'command' && typeof value.command === 'string' && ownedCommand.test(value.command);
 }
 
-function hasAgentBarHandler(groups: unknown[]): boolean {
-  return groups.some((group) => isRecord(group) && Array.isArray(group.hooks) && group.hooks.some(isAgentBarHandler));
+// The node executable and receiver script an AgentBar handler will run.
+export function ownedPaths(command: string): { node: string; receiver: string } | undefined {
+  const match = ownedCommand.exec(command);
+  if (!match) return undefined;
+  const unquote = (value: string) => value.replaceAll("'\\''", "'");
+  return { node: unquote(match[1] ?? ''), receiver: unquote(match[2] ?? '') };
+}
+
+function agentBarHandlers(groups: unknown[]): JsonObject[] {
+  return groups.flatMap((group) => (isRecord(group) && Array.isArray(group.hooks) ? group.hooks.filter(isAgentBarHandler) : [])) as JsonObject[];
 }
 
 export type MergeResult =
@@ -61,11 +69,21 @@ export function installHooks(settings: unknown, command: string): MergeResult {
   let changed = false;
   for (const [name, event] of Object.entries(hookEvents) as [ClaudeHookName, EventType][]) {
     const groups = (hooks[name] ?? []) as JsonObject[];
-    if (hasAgentBarHandler(groups)) {
-      summary.push(`${name}: AgentBar handler already present`);
+    const wanted = handlerFor(command, event);
+    const existing = agentBarHandlers(groups);
+    if (existing.length) {
+      const stale = existing.filter((handler) => handler.command !== wanted.command);
+      if (!stale.length) {
+        summary.push(`${name}: AgentBar handler already present`);
+        continue;
+      }
+      // A moved checkout or upgraded Node leaves handlers pointing at a dead receiver.
+      for (const handler of stale) handler.command = wanted.command;
+      summary.push(`${name}: replace stale AgentBar handler`);
+      changed = true;
       continue;
     }
-    groups.push({ hooks: [handlerFor(command, event)] });
+    groups.push({ hooks: [wanted] });
     hooks[name] = groups;
     summary.push(`${name}: add AgentBar handler`);
     changed = true;
