@@ -30,7 +30,7 @@ project or window, and otherwise misses permission prompts and completion.
 | Session row | One project/session entry in the indicator dropdown. |
 | Hook installation | Adding AgentBar-owned hook handlers to the user's Claude settings while preserving all unrelated settings. |
 | Doctor | A read-only diagnostic command that checks the local AgentBar integration. |
-| Supported environment | An Ubuntu release and GNOME Shell version tested end to end and listed in the support matrix. |
+| Supported environment | An Ubuntu release and GNOME Shell version tested end to end and listed in the support matrix. Currently only Ubuntu 26.04 LTS with GNOME Shell 50 on Wayland. |
 
 ## Observable statuses
 
@@ -70,7 +70,8 @@ as "status unknown/stale", never as a confirmed failure or completion.
 
 ## Current gaps
 
-- No GNOME top-bar interface.
+- The GNOME extension shows a static indicator and menu; it does not read
+  state, derive staleness, or notify yet.
 - No explicit permission grant/denial observation.
 - No crash detection, stale presentation, retention, rotation, or history-based
   snapshot repair.

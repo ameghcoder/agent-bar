@@ -2,7 +2,7 @@
 
 AgentBar is a local-first Ubuntu/GNOME top-bar companion for Claude Code. It will show observable activity while you work in another window.
 
-Current scope: **hook capture and safe hook installation**. This repository contains a TypeScript CLI, a versioned JSON state snapshot, and JSONL event history. No GNOME extension, UI, database, server, auth, or progress percentages.
+Current scope: **hook capture, safe hook installation, and a minimal GNOME Shell indicator**. This repository contains a TypeScript CLI, a versioned JSON state snapshot, JSONL event history, and a GJS extension that does not yet read state. No database, server, auth, or progress percentages.
 
 ## Setup
 
@@ -65,6 +65,22 @@ With `--apply`:
 
 Restart Claude Code after applying either command.
 
+`examples/claude-hooks-settings.example.json` is a portable template; replace its placeholder path or use the helper. Config structure and event names follow the [official Claude Code hook reference](https://code.claude.com/docs/en/hooks). It registers the seven matching lifecycle hooks and maps `PostToolUseFailure` and `StopFailure` to AgentBar's `error`; there is no invented Claude hook named `Error`. Older Claude versions may lack `StopFailure`.
+
+## GNOME Shell extension (development)
+
+The extension lives in `extension/` (UUID `agentbar@ameghcoder.github.io`) and targets **GNOME Shell 50 on Ubuntu 26.04 LTS (Wayland)**, the only environment tested so far. It is a plain GNOME 45+ ESM extension: `metadata.json`, `extension.js`, `stylesheet.css`.
+
+```sh
+scripts/extension-dev.sh install    # symlink extension/ into ~/.local/share/gnome-shell/extensions/
+scripts/extension-dev.sh enable     # or disable / status
+scripts/extension-dev.sh logs       # follow GNOME Shell's journal for AgentBar lines and JS errors
+scripts/extension-dev.sh pack DIR   # validate metadata and build a zip
+scripts/extension-dev.sh devkit     # nested GNOME Shell for iteration (needs the mutter-dev-bin package for a window)
+```
+
+On Wayland a newly installed extension is picked up at the next login, and code changes to an already loaded extension need a logout/login or a nested session; `gnome-extensions enable`/`disable` themselves work live. `pnpm test` checks the metadata and that `extension.js` parses and imports only `gi://` and `resource:///org/gnome/shell/` modules.
+
 ## Diagnose
 
 ```sh
@@ -72,8 +88,6 @@ pnpm agentbar doctor
 ```
 
 Read-only. Prints one `PASS`, `WARN`, or `FAIL` line per check (AgentBar and Node versions, state directory and snapshot, Claude settings and AgentBar hooks, GNOME Shell, display session, extensions tool) and exits 1 if a required check fails. Missing optional tools are warnings. Paths are shown relative to `~`; the output never includes hook payloads, session or project names, or settings content, so it is safe to paste into a bug report. `--settings <path>` points it at a different settings file.
-
-`examples/claude-hooks-settings.example.json` is a portable template; replace its placeholder path or use the helper. Config structure and event names follow the [official Claude Code hook reference](https://code.claude.com/docs/en/hooks). It registers the seven matching lifecycle hooks and maps `PostToolUseFailure` and `StopFailure` to AgentBar's `error`; there is no invented Claude hook named `Error`. Older Claude versions may lack `StopFailure`.
 
 ## Observable state
 
