@@ -108,6 +108,17 @@ Status describes the last captured event, not a guarantee that the whole task su
 
 The snapshot contains `schemaVersion`; history records do not. Every history record has `id`, `timestamp`, `source`, `projectPath`, `projectName`, `sessionId`, `eventType`, `status`, `message`, and the original parsed `raw` object. IDs are UUIDs; timestamps are local capture times in UTC. Missing `cwd` falls back to the receiver's working directory.
 
+## Presentation model
+
+`src/core/presentation.ts` turns a parsed snapshot plus the current time into
+one `IndicatorView`: an aggregate status for the top bar, ordered session rows
+for the menu, and the notification decisions. It is pure and has no imports, so
+the same compiled file runs under Node's tests and loads in GJS.
+
+Status priority, menu ordering, the staleness threshold and its clock-skew
+behaviour, notification dedupe, and the fields deliberately kept out of the view
+are specified in [`docs/architecture.md`](docs/architecture.md).
+
 ## Storage and failure handling
 
 Default files are `~/.local/state/agentbar/state.json` and `~/.local/state/agentbar/events.jsonl`. `AGENTBAR_STATE_DIR` can override the directory with an absolute path; `XDG_STATE_HOME` is not used. Folders are created automatically. New state directories use mode `0700`; new data files use `0600`.

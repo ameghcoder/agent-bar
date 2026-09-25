@@ -8,7 +8,8 @@ shows observable Claude activity while the developer works in another window.
 Before changing code, read:
 
 1. `CONTEXT.md` for product language and invariants.
-2. Accepted records in `docs/adr/` for architectural constraints.
+2. Accepted records in `docs/adr/` for architectural constraints, and
+   `docs/architecture.md` for module boundaries and the presentation contract.
 3. The active GitHub issue for the task, blockers, and acceptance criteria;
    `.temp/tasks.md` for the schedule and recorded test evidence.
 4. `README.md`, `package.json`, and the code involved in the active task.
