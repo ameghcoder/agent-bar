@@ -1,3 +1,26 @@
 .agentbar-indicator-label {
   padding-left: 4px;
 }
+
+/* Restrained: only the two intents that need a developer's attention get a
+ * colour override. Everything else keeps the theme's default symbolic icon
+ * colour. Adwaita's own warning/error tones, so it reads as "GNOME", not
+ * as AgentBar branding. */
+.agentbar-icon-attention {
+  color: #e5a50a;
+}
+
+.agentbar-icon-error {
+  color: #e01b24;
+}
+
+/* The same two classes are also applied to a session row item
+ * (PopupImageMenuItem); its icon picks up the colour via cascade rather than
+ * extension.js reaching into the item's private icon actor. */
+.agentbar-icon-attention .popup-menu-icon {
+  color: #e5a50a;
+}
+
+.agentbar-icon-error .popup-menu-icon {
+  color: #e01b24;
+}

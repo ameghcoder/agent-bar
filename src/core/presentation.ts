@@ -51,6 +51,7 @@ export interface SessionView {
   intent: Intent;
   message: string;
   hint: string;
+  relative: string;
   attention: boolean;
   stale: boolean;
   staleForMs: number;
@@ -69,6 +70,23 @@ export interface IndicatorView {
 export interface PresentOptions {
   now?: number;
   staleAfterMs?: number;
+}
+
+// Short, safe-to-render relative time. Degrades the same way staleness does:
+// a future timestamp (clock skew) never claims a specific age, and an
+// unreadable one is honestly "unknown" rather than a guessed number.
+export function relativeTime(iso: string, now: number): string {
+  const age = now - Date.parse(iso);
+  if (Number.isNaN(age)) return 'unknown';
+  if (age <= 0) return 'just now';
+  const minutes = Math.floor(age / 60_000);
+  if (minutes < 1) return 'just now';
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days}d ago`;
+  return new Date(now - age).toISOString().slice(0, 10);
 }
 
 // ADR 0004 permits a short hint - the parent directory name, never the full
@@ -93,6 +111,7 @@ function toView(session: SessionState, now: number, staleAfterMs: number, ambigu
     intent: stale ? statusIntent('unknown') : statusIntent(session.status),
     message: session.lastMessage,
     hint: ambiguous ? parentName(session.projectPath) : '',
+    relative: relativeTime(session.lastSeenAt, now),
     attention: attentionStatuses.includes(session.status),
     stale,
     staleForMs: stale ? overdue : 0,

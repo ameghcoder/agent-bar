@@ -87,6 +87,7 @@ test('a session row carries presentation fields only, never raw payload or full 
     intent: 'attention',
     message: 'alpha message',
     hint: '',
+    relative: '1m ago',
     attention: true,
     stale: false,
     staleForMs: 0,
@@ -233,4 +234,28 @@ test('sessions sharing a project name get a parent-directory hint; unique ones g
 test('the compiled presentation model imports nothing, so the GJS extension can load it', async () => {
   const compiled = await readFile(new URL('../dist/core/presentation.js', import.meta.url), 'utf8');
   assert.doesNotMatch(compiled, /^\s*(import|export .* from|const .* = require)\b/m);
+});
+
+test('a session row reports a short relative last-seen time, refreshed by whatever now is passed in', () => {
+  const rows = presentSnapshot(snapshot([
+    { ...session('now', 'running', 0), lastSeenAt: age(500) },
+    { ...session('secs', 'running', 0), lastSeenAt: age(45_000) },
+    { ...session('min', 'running', 0), lastSeenAt: age(5 * 60_000) },
+    { ...session('hour', 'running', 0), lastSeenAt: age(3 * 3_600_000) },
+    { ...session('day', 'running', 0), lastSeenAt: age(2 * 86_400_000) },
+  ]), { now }).sessions;
+  assert.deepEqual(Object.fromEntries(rows.map((row) => [row.sessionId, row.relative])), {
+    now: 'just now', secs: 'just now', min: '5m ago', hour: '3h ago', day: '2d ago',
+  });
+});
+
+test('relative time degrades safely: an unreadable or future timestamp never claims a specific age', () => {
+  const rows = presentSnapshot(snapshot([
+    { ...session('skewed', 'running', 0), lastSeenAt: age(-60_000) },
+    { ...session('broken', 'running', 0), lastSeenAt: 'not-a-date' },
+    { ...session('week-plus', 'running', 0), lastSeenAt: age(9 * 86_400_000) },
+  ]), { now }).sessions;
+  assert.deepEqual(Object.fromEntries(rows.map((row) => [row.sessionId, row.relative])), {
+    skewed: 'just now', broken: 'unknown', 'week-plus': new Date(now - 9 * 86_400_000).toISOString().slice(0, 10),
+  });
 });
