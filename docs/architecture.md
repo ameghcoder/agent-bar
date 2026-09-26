@@ -124,8 +124,22 @@ real atomic renames, rather than mocking the filesystem or GNOME APIs.
 `extension/extension.js` is the one Shell-dependent file: it owns the
 `PanelMenu.Button`, renders `IndicatorView` fields (`intent` chooses the icon;
 `label` is the top-bar text) and builds menu rows from `sessions`, and
-forwards `StateWatcher`'s callbacks. It never computes a status, priority, or
-staleness itself.
+forwards `StateWatcher`'s callbacks. It never computes a status, priority,
+staleness, or notification urgency itself - including urgency, which it
+would be tempting to infer from `intent` in the Shell layer, but `intent`
+collapses `waiting` and `permission_required` into the same value and
+urgency must not. `notificationsFor` (`src/core/presentation.ts`) decides it
+explicitly per status - `permission_required` critical, `failed` high,
+`waiting` normal, `completed` low - so the rule stays pure and tested, and
+the extension's job is only the GNOME enum lookup.
+
+Desktop notifications go through one long-lived `MessageTray.Source` titled
+"AgentBar" (created on `enable()`, destroyed on `disable()`); each
+`NotificationView` becomes one `MessageTray.Notification` on that source,
+with `title`/`body` taken as-is from `notificationsFor` (already deduped,
+already startup-safe: `previous === undefined` yields no notifications, so
+enabling the extension never replays old state as new alerts) and `urgency`
+mapped through the table above.
 
 ### Watching the state file
 

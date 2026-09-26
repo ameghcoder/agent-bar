@@ -176,6 +176,7 @@ test('entering an attention state notifies once, and repeating the same snapshot
     title: 'Permission needed',
     body: 'alpha: Claude needs permission',
     intent: 'attention',
+    urgency: 'critical',
   }]);
   assert.deepEqual(notificationsFor(asked, asked), []);
 });
@@ -258,4 +259,19 @@ test('relative time degrades safely: an unreadable or future timestamp never cla
   assert.deepEqual(Object.fromEntries(rows.map((row) => [row.sessionId, row.relative])), {
     skewed: 'just now', broken: 'unknown', 'week-plus': new Date(now - 9 * 86_400_000).toISOString().slice(0, 10),
   });
+});
+
+test('notification urgency is decided by presentation.ts, not left for the extension to infer from intent alone', () => {
+  const transitions = [
+    ['permission_required', 'critical'],
+    ['failed', 'high'],
+    ['waiting', 'normal'],
+    ['completed', 'low'],
+  ];
+  for (const [status, expected] of transitions) {
+    const before = view([session('alpha', 'running', 2)]);
+    const after = view([session('alpha', status, 1)]);
+    const [notification] = notificationsFor(before, after);
+    assert.equal(notification.urgency, expected, status);
+  }
 });

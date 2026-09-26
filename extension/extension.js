@@ -5,6 +5,7 @@ import St from 'gi://St';
 
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+import * as MessageTray from 'resource:///org/gnome/shell/ui/messageTray.js';
 import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 
@@ -30,6 +31,15 @@ const STYLE_CLASS_BY_INTENT = {
 };
 
 const DOCTOR_COMMAND = 'agentbar doctor';
+
+// presentation.ts decides urgency (ADR 0004: permission gets the strongest
+// tier without repeatedly stealing focus); this is only the GNOME enum lookup.
+const SHELL_URGENCY = {
+    critical: MessageTray.Urgency.CRITICAL,
+    high: MessageTray.Urgency.HIGH,
+    normal: MessageTray.Urgency.NORMAL,
+    low: MessageTray.Urgency.LOW,
+};
 
 function statePath() {
     // Mirrors src/core/paths.ts so a developer can point the extension at a
@@ -86,6 +96,15 @@ export default class AgentBarExtension extends Extension {
 
         Main.panel.addToStatusArea(this.uuid, this._indicator);
 
+        // One long-lived source, like any well-behaved notifying app; GNOME
+        // shows its title ("AgentBar") above each notification's own title
+        // and body, so those two fields don't need to repeat it.
+        this._notificationSource = new MessageTray.Source({
+            title: 'AgentBar',
+            iconName: ICON_BY_INTENT.quiet,
+        });
+        Main.messageTray.add(this._notificationSource);
+
         this._watcher = new StateWatcher(statePath(), {
             onView: (view) => this._renderView(view),
             onUnavailable: (message) => {
@@ -94,9 +113,7 @@ export default class AgentBarExtension extends Extension {
                 console.log(`AgentBar: state unavailable - ${message}`);
                 this._renderPlaceholder('Status unavailable', ICON_BY_INTENT.unknown, 'AgentBar');
             },
-            onNotifications: () => {
-                // Desktop notifications are T305's job; T303/T304 only wire the reader.
-            },
+            onNotifications: (notifications) => this._showNotifications(notifications),
         });
         this._watcher.start();
 
@@ -119,6 +136,22 @@ export default class AgentBarExtension extends Extension {
         this._icon.style_class = `system-status-icon ${STYLE_CLASS_BY_INTENT[view.intent] ?? ''}`.trim();
         this._label.text = view.label;
         this._syncSessionRows(view.sessions);
+    }
+
+    // Each NotificationView is already deduped and decided by presentation.ts
+    // (notificationsFor): one per meaningful transition, never on startup
+    // replay, never for a rewrite that changed nothing. This only turns each
+    // one into a real GNOME notification.
+    _showNotifications(notifications) {
+        for (const notification of notifications) {
+            this._notificationSource.addNotification(new MessageTray.Notification({
+                source: this._notificationSource,
+                title: notification.title,
+                body: notification.body,
+                iconName: ICON_BY_INTENT[notification.intent] ?? ICON_BY_INTENT.unknown,
+                urgency: SHELL_URGENCY[notification.urgency] ?? MessageTray.Urgency.NORMAL,
+            }));
+        }
     }
 
     _renderPlaceholder(text, iconName, labelText) {
@@ -173,6 +206,8 @@ export default class AgentBarExtension extends Extension {
         this._watcher?.stop();
         this._watcher = null;
         this._rows.clear();
+        this._notificationSource?.destroy();
+        this._notificationSource = null;
         this._indicator?.destroy();
         this._indicator = null;
         this._icon = null;

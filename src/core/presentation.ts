@@ -150,7 +150,18 @@ export function presentSnapshot(state: AgentBarState, options: PresentOptions = 
 
 // ADR 0004: notify once per meaningful transition per session, deduped by a
 // stable key, and never on startup replay of state that predates the reader.
-const notifyStatuses: readonly Status[] = ['permission_required', 'waiting', 'failed', 'completed'];
+// Urgency lives here, not in the extension: permission blocks Claude and
+// gets the strongest tier without repeatedly stealing focus; failed is a
+// real problem; waiting only asks for input; completed is informational.
+export const urgencies = ['critical', 'high', 'normal', 'low'] as const;
+export type Urgency = typeof urgencies[number];
+const urgencyByStatus: Partial<Record<Status, Urgency>> = {
+  permission_required: 'critical',
+  failed: 'high',
+  waiting: 'normal',
+  completed: 'low',
+};
+const notifyStatuses = Object.keys(urgencyByStatus) as readonly Status[];
 
 export interface NotificationView {
   key: string;
@@ -158,6 +169,7 @@ export interface NotificationView {
   title: string;
   body: string;
   intent: Intent;
+  urgency: Urgency;
 }
 
 export function notificationsFor(previous: IndicatorView | undefined, next: IndicatorView): NotificationView[] {
@@ -171,5 +183,7 @@ export function notificationsFor(previous: IndicatorView | undefined, next: Indi
       title: statusLabel(session.status),
       body: `${session.projectName}: ${session.message}`,
       intent: statusIntent(session.status),
+      // notifyStatuses is exactly urgencyByStatus's keys, so this is total.
+      urgency: urgencyByStatus[session.status] as Urgency,
     }));
 }
