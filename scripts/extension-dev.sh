@@ -25,7 +25,9 @@ case "${1:-help}" in
     dbus-run-session -- sh -c "SHELL_DEBUG=backtrace-warnings gnome-shell --devkit --wayland" ;;
   pack)      # validate metadata and produce a zip in the scratch dir given as \$2
     out="${2:-/tmp}"
-    gnome-extensions pack --force --out-dir "$out" "$src" && echo "packed to $out" ;;
+    # extension/lib holds generated files (see scripts/copy-extension-lib.mjs);
+    # gnome-extensions pack does not include subdirectories unless told to.
+    gnome-extensions pack --force --out-dir "$out" --extra-source="$src/lib" "$src" && echo "packed to $out" ;;
   *)
     echo "usage: $0 install|uninstall|enable|disable|status|logs|devkit|pack [dir]" >&2
     exit 2 ;;

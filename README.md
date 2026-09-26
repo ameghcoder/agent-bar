@@ -69,17 +69,22 @@ Restart Claude Code after applying either command.
 
 ## GNOME Shell extension (development)
 
-The extension lives in `extension/` (UUID `agentbar@ameghcoder.github.io`) and targets **GNOME Shell 50 on Ubuntu 26.04 LTS (Wayland)**, the only environment tested so far. It is a plain GNOME 45+ ESM extension: `metadata.json`, `extension.js`, `stylesheet.css`.
+The extension lives in `extension/` (UUID `agentbar@ameghcoder.github.io`) and targets **GNOME Shell 50 on Ubuntu 26.04 LTS (Wayland)**, the only environment tested so far. It is a plain GNOME 45+ ESM extension: `metadata.json`, `extension.js`, `stylesheet.css`, plus a generated `lib/` (below).
+
+`pnpm build` copies the portable, `node:`-free core modules (`vocabulary.js`, `snapshot.js`, `presentation.js`) into `extension/lib/`, so the extension reads live state through the exact same reader and presentation logic Node's tests run, with no `dist/` or `node_modules` dependency at runtime. `extension/lib/state-reader.js` is hand-authored (not generated): a Shell-independent `StateWatcher` (only `gi://GLib` and `gi://Gio`) that watches the state directory, debounces real filesystem noise into one re-read, and falls back to a periodic timer both to catch missed events and to re-attach the directory monitor if the state directory did not exist yet when watching began. Run `pnpm build` before `install`; `extension/lib/` is generated and gitignored.
 
 ```sh
+pnpm build                          # also refreshes extension/lib/ - do this after any core change
 scripts/extension-dev.sh install    # symlink extension/ into ~/.local/share/gnome-shell/extensions/
 scripts/extension-dev.sh enable     # or disable / status
 scripts/extension-dev.sh logs       # follow GNOME Shell's journal for AgentBar lines and JS errors
-scripts/extension-dev.sh pack DIR   # validate metadata and build a zip
+scripts/extension-dev.sh pack DIR   # validate metadata and build a zip, including extension/lib
 scripts/extension-dev.sh devkit     # nested GNOME Shell for iteration (needs the mutter-dev-bin package for a window)
 ```
 
-On Wayland a newly installed extension is picked up at the next login, and code changes to an already loaded extension need a logout/login or a nested session; `gnome-extensions enable`/`disable` themselves work live. `pnpm test` checks the metadata and that `extension.js` parses and imports only `gi://` and `resource:///org/gnome/shell/` modules.
+On Wayland a newly installed extension is picked up at the next login, and code changes to an already loaded extension need a logout/login or a nested session; `gnome-extensions enable`/`disable` themselves work live. `pnpm test` checks the metadata, that `extension.js` and `extension/lib/state-reader.js` parse and import only `gi://`, `resource:///org/gnome/shell/`, or their own portable siblings, that the generated `lib/` files are exact copies of `dist/core/` and stay untouched by hand edits, and that packing actually includes `lib/` (`gnome-extensions pack` does not bundle subdirectories without `--extra-source`, which the script passes). It also drives the real `StateWatcher` under the real `gjs` runtime against real atomic renames of a temporary state file - not a mock - covering missing/valid/malformed/future-schema/recovered states and notification dedupe in one scripted run.
+
+By default the extension reads `~/.local/state/agentbar/state.json`, same as the CLI. Setting `AGENTBAR_STATE_DIR` before GNOME Shell starts points it at another directory, for development.
 
 ## Diagnose
 

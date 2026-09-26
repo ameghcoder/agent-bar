@@ -1,18 +1,8 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { basename, resolve } from 'node:path';
+import { isRecord, type EventType, type JsonObject, type Status } from './vocabulary.js';
 
-export const eventTypes = [
-  'session_start', 'pre_tool_use', 'post_tool_use', 'notification',
-  'permission_request', 'stop', 'session_end', 'error',
-] as const;
-export type EventType = typeof eventTypes[number];
-
-export const statuses = [
-  'idle', 'running', 'waiting', 'permission_required', 'completed', 'failed', 'unknown',
-] as const;
-export type Status = typeof statuses[number];
-export type JsonValue = string | number | boolean | null | JsonValue[] | JsonObject;
-export interface JsonObject { [key: string]: JsonValue }
+export { eventTypes, isEventType, isRecord, statuses, type EventType, type JsonObject, type JsonValue, type Status } from './vocabulary.js';
 
 export interface ClaudeEvent {
   id: string;
@@ -25,14 +15,6 @@ export interface ClaudeEvent {
   status: Status;
   message: string;
   raw: JsonObject;
-}
-
-export function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-export function isEventType(value: string): value is EventType {
-  return eventTypes.some((type) => type === value);
 }
 
 export function parseInput(input: string): JsonObject {

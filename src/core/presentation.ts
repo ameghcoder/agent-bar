@@ -1,4 +1,4 @@
-import type { Status } from './events.js';
+import type { Status } from './vocabulary.js';
 import type { AgentBarState, SessionState } from './snapshot.js';
 
 // Type-only imports keep this module free of Node built-ins so the GNOME

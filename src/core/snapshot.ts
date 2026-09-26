@@ -1,4 +1,4 @@
-import { eventTypes, isRecord, statuses, type EventType, type Status } from './events.js';
+import { eventTypes, isRecord, statuses, type EventType, type Status } from './vocabulary.js';
 
 export const schemaVersion = 1;
 

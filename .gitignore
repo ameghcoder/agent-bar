@@ -1,5 +1,6 @@
 node_modules/
 dist/
+extension/lib/
 *.tsbuildinfo
 .agentbar-test-state/
 .temp/

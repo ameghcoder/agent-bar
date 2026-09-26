@@ -111,3 +111,12 @@ test('the writer upgrades a legacy file in place and refuses to overwrite a futu
   assert.match(result.stderr, /not overwritten/);
   assert.equal(await readFile(join(directory, 'state.json'), 'utf8'), future);
 });
+
+test('the compiled snapshot reader only imports portable sibling files, never a node: module, so GJS can load it', async () => {
+  const compiled = await readFile(new URL('../dist/core/snapshot.js', import.meta.url), 'utf8');
+  const specifiers = [...compiled.matchAll(/^import .* from '([^']+)';$/gm)].map((match) => match[1]);
+  assert.equal(specifiers.length > 0, true, 'sanity check: this file does import something');
+  for (const specifier of specifiers) assert.match(specifier, /^\.\//, specifier);
+  const vocabulary = await readFile(new URL('../dist/core/vocabulary.js', import.meta.url), 'utf8');
+  assert.doesNotMatch(vocabulary, /^\s*(import|export .* from|const .* = require)\b/m, 'its one dependency must itself be import-free');
+});
