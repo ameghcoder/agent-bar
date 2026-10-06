@@ -104,6 +104,7 @@ test('an empty snapshot presents a quiet indicator with no sessions', () => {
     status: 'idle', label: 'Idle', intent: 'quiet', stale: false, attentionCount: 0, sessions: [],
     title: 'AgentBar - No sessions',
     leaderId: null,
+    health: 'No events yet · run "agentbar install-hooks"',
   });
 });
 
@@ -361,4 +362,36 @@ test('the leader id is stable while the time text changes, so a pulse is not res
   assert.equal(later.title, 'alpha - Permission needed - 3m ago');
   assert.equal(early.leaderId, 'alpha');
   assert.equal(later.leaderId, 'alpha');
+});
+
+// T316: the health row says only what the state file proves. It never claims
+// hooks are or are not installed - that is `agentbar doctor`'s job.
+test('health says no events yet when the state holds no sessions', () => {
+  assert.equal(view([]).health, 'No events yet · run "agentbar install-hooks"');
+});
+
+test('health reports receiving events when the newest event is within the stale window', () => {
+  const result = view([session('old', 'completed', 300), session('fresh', 'running', 2)]);
+  assert.equal(result.health, 'Receiving events · last 2m ago');
+});
+
+test('health reports no recent events once the newest event is older than the stale window, even for settled sessions', () => {
+  assert.equal(view([session('done', 'completed', 180)]).health, 'No recent events · last 3h ago');
+});
+
+test('health names no age when no timestamp is readable', () => {
+  assert.equal(view([session('odd', 'running', 0, { lastSeenAt: 'not a date' })]).health, 'No recent events');
+});
+
+test('health ignores an unreadable timestamp when another session has a good one', () => {
+  const result = view([session('odd', 'running', 0, { lastSeenAt: 'not a date' }), session('ok', 'running', 1)]);
+  assert.equal(result.health, 'Receiving events · last 1m ago');
+});
+
+test('health carries no session data', () => {
+  assert.doesNotMatch(view([session('alpha', 'running', 1, { lastMessage: 'secret' })]).health, /alpha|secret/);
+});
+
+test('health reads naturally for an event that just arrived', () => {
+  assert.equal(view([session('now', 'running', 0)]).health, 'Receiving events · just now');
 });

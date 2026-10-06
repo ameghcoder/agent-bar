@@ -147,6 +147,10 @@ export default class AgentBarExtension extends Extension {
 
     _buildFooter() {
         this._indicator.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+        // Text comes from presentation.js (view.health); no state yet reads as
+        // unavailable until the first view or placeholder arrives.
+        this._healthItem = new PopupMenu.PopupMenuItem('State unavailable', {reactive: false});
+        this._indicator.menu.addMenuItem(this._healthItem);
         const doctorItem = new PopupMenu.PopupMenuItem(`Copy "${DOCTOR_COMMAND}"`);
         doctorItem.connect('activate', () => {
             St.Clipboard.get_default().set_text(St.ClipboardType.CLIPBOARD, DOCTOR_COMMAND);
@@ -163,6 +167,7 @@ export default class AgentBarExtension extends Extension {
         // presentation.js builds the whole text ("project - State +N"); this
         // only displays it.
         this._label.text = view.title;
+        this._healthItem.label.text = view.health;
         this._syncSessionRows(view.sessions);
         this._applyAnimation(view);
     }
@@ -249,6 +254,7 @@ export default class AgentBarExtension extends Extension {
         this._icon.icon_name = iconName;
         this._icon.style_class = 'system-status-icon';
         this._label.text = labelText;
+        this._healthItem.label.text = 'State unavailable';
         this._syncSessionRows([]);
         this._placeholder.label.text = text;
     }
@@ -312,6 +318,7 @@ export default class AgentBarExtension extends Extension {
         this._label = null;
         this._sessionsSection = null;
         this._placeholder = null;
+        this._healthItem = null;
         console.log('AgentBar disabled');
     }
 }

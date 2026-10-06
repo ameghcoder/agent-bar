@@ -67,6 +67,17 @@ The leader is the highest-priority session among the *fresh* ones, ties broken
 by the menu order below. Stale sessions lead only when none are fresh, so an old
 unanswered request can no longer hide the session you are using now.
 
+### The health line
+
+`IndicatorView.health` is one neutral line shown above the version row. It is
+derived from the newest readable `lastSeenAt` across all sessions: no sessions is
+`No events yet · run "agentbar install-hooks"`; newer than the stale window is
+`Receiving events · <time ago>`; older is `No recent events · <time ago>`; no
+readable timestamp is `No recent events`. It states only what the state file
+proves. It never claims hooks are installed or missing (that is
+`agentbar doctor`) and carries no session data. The extension adds the one case
+the view cannot express, `State unavailable`, when the file cannot be read.
+
 ### Ordering in the menu
 
 Attention states (`permission_required`, `waiting`, `failed`) sort above

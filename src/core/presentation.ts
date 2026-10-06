@@ -71,6 +71,8 @@ export interface IndicatorView {
   // changes, so a renderer can key an animation on it without restarting every
   // minute. null when there are no sessions.
   leaderId: string | null;
+  // One neutral line for the menu, see healthLine.
+  health: string;
 }
 
 export interface PresentOptions {
@@ -156,6 +158,19 @@ function topBarTitle(leader: SessionView | undefined, otherRunning: number): str
   return `${name} - ${leader.label} - ${leader.relative}${otherRunning > 0 ? ` +${otherRunning}` : ''}`;
 }
 
+// What the state file proves about the event flow, nothing more: it never says
+// whether hooks are installed (that is `agentbar doctor`) and carries no
+// session data. "Receiving" uses the stale window, so a quiet few minutes
+// during a long tool call still reads as receiving.
+function healthLine(sessions: SessionView[], now: number, staleAfterMs: number): string {
+  if (sessions.length === 0) return 'No events yet · run "agentbar install-hooks"';
+  const newest = Math.max(...sessions.map((session) => Date.parse(session.lastSeenAt)).filter((time) => !Number.isNaN(time)));
+  if (!Number.isFinite(newest)) return 'No recent events';
+  const relative = relativeTime(new Date(newest).toISOString(), now);
+  const age = relative === 'just now' ? relative : `last ${relative}`;
+  return now - newest < staleAfterMs ? `Receiving events · ${age}` : `No recent events · ${age}`;
+}
+
 export function presentSnapshot(state: AgentBarState, options: PresentOptions = {}): IndicatorView {
   const now = options.now ?? Date.now();
   const staleAfterMs = options.staleAfterMs ?? defaultStaleAfterMs;
@@ -183,6 +198,7 @@ export function presentSnapshot(state: AgentBarState, options: PresentOptions = 
     sessions,
     title: topBarTitle(leader, fresh.filter((session) => session !== leader && session.status === 'running').length),
     leaderId: leader?.sessionId ?? null,
+    health: healthLine(sessions, now, staleAfterMs),
   };
 }
 

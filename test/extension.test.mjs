@@ -104,3 +104,9 @@ test('extension.js keys the pulse on the leading session, not on the title whose
   assert.match(source, /view\.leaderId/);
   assert.doesNotMatch(source, /\$\{view\.intent\}\|\$\{view\.title\}/);
 });
+
+test('extension.js shows the health line from the view and falls back to unavailable', async () => {
+  const source = await readFile(new URL('extension/extension.js', root), 'utf8');
+  assert.match(source, /_healthItem\.label\.text = view\.health/);
+  assert.match(source, /_healthItem\.label\.text = 'State unavailable'/);
+});
