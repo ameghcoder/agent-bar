@@ -81,6 +81,16 @@ treated as fresh. An unparseable one is treated as stale, because a value we
 cannot read cannot prove freshness, and `NaN >= threshold` is `false` — which
 would silently claim the session is fine.
 
+### Retention
+
+Separate from staleness: a session whose `lastSeenAt` is more than 24 hours
+old (`sessionRetentionMs`, `src/core/snapshot.ts`) is gone, whatever its
+status. The writer drops it from `state.json` on every capture, and
+`StateWatcher` drops it before presenting, so an idle machine with a long-lived
+extension stays clean. `presentSnapshot` deliberately does not apply it: it
+stays pure and import-free (asserted by a test) and shows whatever it is given.
+A future or unreadable timestamp is kept, not expired. History is never pruned.
+
 ### Notifications
 
 `notificationsFor(previous, next)` decides *when* to notify; the extension

@@ -13,6 +13,8 @@ import test from 'node:test';
 const harness = fileURLToPath(new URL('fixtures/gjs-state-reader-harness.js', import.meta.url));
 const unreadableHarness = fileURLToPath(new URL('fixtures/gjs-unreadable-state-harness.js', import.meta.url));
 
+const expiredHarness = fileURLToPath(new URL('fixtures/gjs-expired-sessions-harness.js', import.meta.url));
+
 async function runHarness(t, script = harness) {
   const directory = await mkdtemp(join(tmpdir(), 'agentbar-state-reader-'));
   t.after(() => rm(directory, { recursive: true, force: true }));
@@ -66,4 +68,14 @@ test('a state path that exists but cannot be read is unavailable, never an empty
   const { lines } = await runHarness(t, unreadableHarness);
   assert.deepEqual(lines.map((line) => line.kind), ['unavailable']);
   assert.match(lines[0].message, /Cannot read the state file/);
+});
+
+test('sessions past the 24-hour retention window never reach the view, even a stale permission request', { skip: process.platform !== 'linux' }, async (t) => {
+  const { lines } = await runHarness(t, expiredHarness);
+  assert.deepEqual(lines.map((line) => line.kind), ['view']);
+  const { view } = lines[0];
+  assert.deepEqual(view.sessions.map((row) => row.sessionId), ['current']);
+  assert.equal(view.attentionCount, 0);
+  assert.equal(view.status, 'completed');
+  assert.equal(view.stale, false);
 });

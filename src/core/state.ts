@@ -3,7 +3,7 @@ import { appendFile, mkdir, readFile, rename, rm, writeFile } from 'node:fs/prom
 import lockfile from 'proper-lockfile';
 import { carryActiveStatus, isRecord, normalizeEvent, type ClaudeEvent, type EventType, type JsonObject } from './events.js';
 import { getPaths } from './paths.js';
-import { parseSnapshot, schemaVersion, type AgentBarState, type SessionState } from './snapshot.js';
+import { parseSnapshot, schemaVersion, withoutExpiredSessions, type AgentBarState, type SessionState } from './snapshot.js';
 
 export type { AgentBarState, SessionState } from './snapshot.js';
 
@@ -51,6 +51,7 @@ export async function captureEvent(type: EventType, raw: JsonObject): Promise<Cl
     };
     if (index === -1) state.sessions.push(session);
     else state.sessions[index] = session;
+    state.sessions = withoutExpiredSessions(state.sessions, Date.parse(event.timestamp));
     state.updatedAt = event.timestamp;
     await writeFile(temporaryPath, `${JSON.stringify(state, null, 2)}\n`, { flag: 'wx', mode: 0o600 });
     await appendFile(paths.history, `${JSON.stringify(event)}\n`, { mode: 0o600 });

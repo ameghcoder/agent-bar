@@ -128,7 +128,7 @@ are specified in [`docs/architecture.md`](docs/architecture.md).
 
 Default files are `~/.local/state/agentbar/state.json` and `~/.local/state/agentbar/events.jsonl`. `AGENTBAR_STATE_DIR` can override the directory with an absolute path; `XDG_STATE_HOME` is not used. Folders are created automatically. New state directories use mode `0700`; new data files use `0600`.
 
-The snapshot contains integer `schemaVersion` (currently `1`), `updatedAt`, and `sessions`. Each session stores `sessionId`, `projectName`, `projectPath`, `source`, `status`, `lastEventType`, `lastMessage`, `startedAt`, and `lastSeenAt`. `startedAt` means first observation, since capture can begin mid-session. Named session IDs identify rows even when the working directory changes. Ended rows remain available; no retention policy is implemented yet.
+The snapshot contains integer `schemaVersion` (currently `1`), `updatedAt`, and `sessions`. Each session stores `sessionId`, `projectName`, `projectPath`, `source`, `status`, `lastEventType`, `lastMessage`, `startedAt`, and `lastSeenAt`. `startedAt` means first observation, since capture can begin mid-session. Named session IDs identify rows even when the working directory changes. A session with no event for 24 hours (`sessionRetentionMs`, in `src/core/snapshot.ts`) is dropped from `state.json` on the next capture by any session, and the extension ignores it even before then. `events.jsonl` is never pruned and still grows until you archive or remove it.
 
 ### Snapshot compatibility
 

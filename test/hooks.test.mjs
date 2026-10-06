@@ -252,3 +252,26 @@ test('lastMessage is a short single line and raw message only overrides attentio
   await hook(directory, 'permission_request', { ...base, tool_name: 'Bash', message: 'Allow Bash?' });
   assert.equal((await readState(directory)).sessions[0].lastMessage, 'Allow Bash?');
 });
+
+test('capture drops sessions with no event for 24 hours, keeps the rest, and keeps history', async (t) => {
+  const directory = await temporaryDirectory(t);
+  const ago = (hours) => new Date(Date.now() - hours * 3_600_000).toISOString();
+  const row = (sessionId, status, lastSeenAt) => ({
+    sessionId, projectName: sessionId, projectPath: `/home/me/${sessionId}`, source: 'claude-code',
+    status, lastEventType: 'stop', lastMessage: 'x', startedAt: lastSeenAt, lastSeenAt,
+  });
+  await writeFile(join(directory, 'state.json'), JSON.stringify({
+    schemaVersion: 1,
+    updatedAt: ago(1),
+    sessions: [row('old-active', 'permission_required', ago(24 * 20)), row('old-idle', 'idle', ago(25)), row('recent', 'completed', ago(23))],
+  }));
+  await writeFile(join(directory, 'events.jsonl'), '{"id":"earlier"}\n');
+
+  assert.equal((await hook(directory, 'pre_tool_use', { session_id: 'live', cwd: '/home/me/live', tool_name: 'Edit' })).code, 0);
+
+  const state = await readState(directory);
+  assert.deepEqual(state.sessions.map((session) => session.sessionId).sort(), ['live', 'recent']);
+  const history = await readHistory(directory);
+  assert.equal(history.length, 2, 'pruning the snapshot never rewrites history');
+  assert.equal(history[0].id, 'earlier');
+});

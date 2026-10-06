@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
+import { sessionRetentionMs, withoutExpiredSessions } from '../dist/core/snapshot.js';
 import { notificationsFor, presentSnapshot, statusIntent, statusLabel, statusPriority } from '../dist/core/presentation.js';
 
 // Labels and intents come from CONTEXT.md's observable-status table and
@@ -274,4 +275,26 @@ test('notification urgency is decided by presentation.ts, not left for the exten
     const [notification] = notificationsFor(before, after);
     assert.equal(notification.urgency, expected, status);
   }
+});
+
+// T314: a session with no event for 24 hours is gone, whatever its status.
+const hours = (count) => count * 60;
+
+test('retention is 24 hours', () => {
+  assert.equal(sessionRetentionMs, 24 * 60 * 60 * 1000);
+});
+
+test('withoutExpiredSessions drops sessions older than the window and keeps the rest', () => {
+  const sessions = [
+    session('fresh', 'running', 1),
+    session('edge', 'idle', hours(24) - 1),
+    session('old-idle', 'idle', hours(24) + 1),
+    session('old-active', 'permission_required', hours(24 * 20)),
+  ];
+  assert.deepEqual(withoutExpiredSessions(sessions, now).map((row) => row.sessionId), ['fresh', 'edge']);
+});
+
+test('a future last-seen time (clock ran backwards) is kept, not expired', () => {
+  const sessions = [session('skewed', 'running', -hours(48))];
+  assert.equal(withoutExpiredSessions(sessions, now).length, 1);
 });

@@ -1,7 +1,7 @@
 import GLib from 'gi://GLib';
 import Gio from 'gi://Gio';
 
-import { parseSnapshot } from './snapshot.js';
+import { parseSnapshot, withoutExpiredSessions } from './snapshot.js';
 import { notificationsFor, presentSnapshot } from './presentation.js';
 
 // Shell-independent: only GLib/Gio, no St/Clutter/PanelMenu/Main, so this
@@ -120,7 +120,11 @@ export class StateWatcher {
         this._onUnavailable(parsed.message);
         return;
       }
-      this._publish(presentSnapshot(parsed.state, { now: this._now(), staleAfterMs: this._staleAfterMs }));
+      // presentSnapshot stays pure and shows whatever it is given; sessions past
+      // the retention window are dropped here, where state is read.
+      const now = this._now();
+      const state = { ...parsed.state, sessions: withoutExpiredSessions(parsed.state.sessions, now) };
+      this._publish(presentSnapshot(state, { now, staleAfterMs: this._staleAfterMs }));
     });
   }
 
