@@ -30,6 +30,19 @@ const STYLE_CLASS_BY_INTENT = {
     error: 'agentbar-icon-error',
 };
 
+// Which intents move, and how. Only brief, finite pulses: while any transition
+// with a duration runs, Clutter's ease() holds global.begin_work() and
+// compositor.disable_unredirect() (checked in GNOME Shell 50.1's
+// environment.js), so an endless pulse would keep fullscreen windows off
+// direct scanout for as long as a session runs. A "round trip" is dim and back.
+// `everySeconds` repeats the pulse from a timer that disable() removes.
+const PULSE_BY_INTENT = {
+    active: {roundTrips: 1, everySeconds: 8},
+    attention: {roundTrips: 3, everySeconds: 0},
+};
+const PULSE_LOW_OPACITY = 90;
+const PULSE_HALF_MS = 700;
+
 const DOCTOR_COMMAND = 'agentbar doctor';
 
 // presentation.ts decides urgency (ADR 0004: permission gets the strongest
@@ -105,13 +118,25 @@ export default class AgentBarExtension extends Extension {
         });
         Main.messageTray.add(this._notificationSource);
 
+        // Animation state. `_animationKey` stops a routine re-read from
+        // restarting a pulse that is already running for the same state.
+        this._animationKey = '';
+        this._pulseTimer = 0;
+        this._lastView = null;
+        this._stSettings = St.Settings.get();
+        this._animationsChangedId = this._stSettings.connect('notify::enable-animations', () => {
+            this._stopAnimation();
+            this._animationKey = '';
+            if (this._lastView) this._applyAnimation(this._lastView);
+        });
+
         this._watcher = new StateWatcher(statePath(), {
             onView: (view) => this._renderView(view),
             onUnavailable: (message) => {
                 // The message comes from parseSnapshot or a Gio I/O error, both of
                 // which are already safe diagnostic text - never raw session data.
                 console.log(`AgentBar: state unavailable - ${message}`);
-                this._renderPlaceholder('Status unavailable', ICON_BY_INTENT.unknown, 'AgentBar');
+                this._renderPlaceholder('Status unavailable', ICON_BY_INTENT.unknown, 'AgentBar - State unavailable');
             },
             onNotifications: (notifications) => this._showNotifications(notifications),
         });
@@ -132,10 +157,72 @@ export default class AgentBarExtension extends Extension {
     }
 
     _renderView(view) {
+        this._lastView = view;
         this._icon.icon_name = ICON_BY_INTENT[view.intent] ?? ICON_BY_INTENT.unknown;
         this._icon.style_class = `system-status-icon ${STYLE_CLASS_BY_INTENT[view.intent] ?? ''}`.trim();
-        this._label.text = view.label;
+        // presentation.js builds the whole text ("project - State +N"); this
+        // only displays it.
+        this._label.text = view.title;
         this._syncSessionRows(view.sessions);
+        this._applyAnimation(view);
+    }
+
+    _animationsEnabled() {
+        // GNOME's own reduce-motion setting, and a fullscreen window on the
+        // primary monitor hides the panel anyway.
+        return this._stSettings.enable_animations
+            && !Main.layoutManager.primaryMonitor?.inFullscreen;
+    }
+
+    // Starts, keeps, or stops the pulse for this view. The key is the intent
+    // plus the title, so a new project or state pulses again but an identical
+    // re-read (every state write, every 30 s) does not restart it.
+    _applyAnimation(view) {
+        const pulse = PULSE_BY_INTENT[view.intent];
+        const key = pulse ? `${view.intent}|${view.title}` : '';
+        if (key === this._animationKey)
+            return;
+        this._stopAnimation();
+        this._animationKey = key;
+        if (!pulse)
+            return;
+        this._pulseOnce(pulse.roundTrips);
+        if (pulse.everySeconds > 0) {
+            this._pulseTimer = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, pulse.everySeconds, () => {
+                this._pulseOnce(pulse.roundTrips);
+                return GLib.SOURCE_CONTINUE;
+            });
+        }
+    }
+
+    _pulseOnce(roundTrips) {
+        if (!this._icon || !this._animationsEnabled())
+            return;
+        this._icon.remove_all_transitions();
+        this._icon.opacity = 255;
+        this._icon.ease({
+            opacity: PULSE_LOW_OPACITY,
+            duration: PULSE_HALF_MS,
+            mode: Clutter.AnimationMode.EASE_IN_OUT_SINE,
+            // repeatCount excludes the first iteration; each round trip is two.
+            repeatCount: roundTrips * 2 - 1,
+            autoReverse: true,
+            onComplete: () => {
+                if (this._icon)
+                    this._icon.opacity = 255;
+            },
+        });
+    }
+
+    _stopAnimation() {
+        if (this._pulseTimer) {
+            GLib.Source.remove(this._pulseTimer);
+            this._pulseTimer = 0;
+        }
+        if (this._icon) {
+            this._icon.remove_all_transitions();
+            this._icon.opacity = 255;
+        }
     }
 
     // Each NotificationView is already deduped and decided by presentation.ts
@@ -155,6 +242,9 @@ export default class AgentBarExtension extends Extension {
     }
 
     _renderPlaceholder(text, iconName, labelText) {
+        this._lastView = null;
+        this._animationKey = '';
+        this._stopAnimation();
         this._icon.icon_name = iconName;
         this._icon.style_class = 'system-status-icon';
         this._label.text = labelText;
@@ -205,6 +295,13 @@ export default class AgentBarExtension extends Extension {
     disable() {
         this._watcher?.stop();
         this._watcher = null;
+        this._stopAnimation();
+        if (this._animationsChangedId) {
+            this._stSettings.disconnect(this._animationsChangedId);
+            this._animationsChangedId = 0;
+        }
+        this._stSettings = null;
+        this._lastView = null;
         this._rows.clear();
         this._notificationSource?.destroy();
         this._notificationSource = null;

@@ -83,3 +83,18 @@ test('packing the extension includes extension/lib, not just the three top-level
     assert.ok(entries.includes(expected), `packed zip is missing ${expected}; entries were: ${entries.join(', ')}`);
   }
 });
+
+// T313: ease() holds global.begin_work() and compositor.disable_unredirect()
+// while a transition with a duration runs (GNOME Shell 50.1 environment.js), so
+// an endless pulse would keep fullscreen windows off direct scanout. The pulse
+// must stay finite, must honour GNOME's reduce-motion setting, and must be
+// removed by disable().
+test('extension.js animation stays finite, honours reduce-motion, and is cleaned up on disable', async () => {
+  const source = await readFile(new URL('extension/extension.js', root), 'utf8');
+  assert.doesNotMatch(source, /repeatCount:\s*(-1|Infinity)/, 'an endless transition would hold disable_unredirect');
+  assert.match(source, /enable_animations/, 'reduce-motion must be honoured');
+  assert.match(source, /inFullscreen/, 'pulses are skipped while a fullscreen window hides the panel');
+  const disable = source.slice(source.indexOf('    disable() {'));
+  assert.match(disable, /_stopAnimation\(\)/, 'disable() must remove the timer and transitions');
+  assert.match(disable, /\.disconnect\(this\._animationsChangedId\)/, 'disable() must disconnect the settings handler');
+});

@@ -169,6 +169,20 @@ already startup-safe: `previous === undefined` yields no notifications, so
 enabling the extension never replays old state as new alerts) and `urgency`
 mapped through the table above.
 
+### Animation
+
+The extension pulses the icon's opacity, keyed by `intent`: `attention` pulses
+three times once per new project/state, `active` ("Working") pulses once every
+8 seconds, and every other intent, including stale, stays still. Pulses are
+finite on purpose: for any non-zero duration Clutter's `ease()` holds
+`global.begin_work()` and `compositor.disable_unredirect()` until the
+transition stops (GNOME Shell 50.1 `environment.js`), so an endless pulse would
+keep fullscreen windows off direct scanout. Animation is skipped when GNOME's
+`enable-animations` setting is off or a fullscreen window is on the primary
+monitor, an identical re-read never restarts a running pulse, and `disable()`
+removes the timer, the transitions, and the settings handler. The text is never
+animated: ticking dots would change the width and make the panel jump.
+
 ### Watching the state file
 
 A `Gio.FileMonitor` on the state *directory* (not the file) reports real
