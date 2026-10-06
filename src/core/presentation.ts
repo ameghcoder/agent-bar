@@ -65,6 +65,8 @@ export interface IndicatorView {
   stale: boolean;
   attentionCount: number;
   sessions: SessionView[];
+  // The complete top-bar text: "<project> - <State>", see topBarTitle.
+  title: string;
 }
 
 export interface PresentOptions {
@@ -94,6 +96,24 @@ export function relativeTime(iso: string, now: number): string {
 function parentName(projectPath: string): string {
   const parts = projectPath.split('/').filter(Boolean);
   return parts.length >= 2 ? parts[parts.length - 2] ?? '' : '';
+}
+
+// Top-bar names are cut here, in the pure model, so the bar never grows with
+// a long project name and every renderer shows the same text.
+export const titleNameLimit = 18;
+
+function shortName(name: string): string {
+  const points = Array.from(name);
+  return points.length > titleNameLimit ? `${points.slice(0, titleNameLimit - 1).join('')}…` : name;
+}
+
+// Compact age for the stale title: "5m", "10h", "3d". Only reached for sessions
+// already past the stale threshold, so it is never "just now".
+function compactAge(ms: number): string {
+  const minutes = Math.floor(ms / 60_000);
+  if (minutes < 60) return `${minutes}m`;
+  const hours = Math.floor(minutes / 60);
+  return hours < 24 ? `${hours}h` : `${Math.floor(hours / 24)}d`;
 }
 
 function toView(session: SessionState, now: number, staleAfterMs: number, ambiguous: boolean): SessionView {
@@ -126,6 +146,20 @@ function compare(left: SessionView, right: SessionView): number {
   return seen !== 0 ? seen : left.sessionId.localeCompare(right.sessionId);
 }
 
+// "<project> - <State>", plus " +N" for the other fresh active sessions. When
+// only stale sessions remain the title says how long it has been quiet instead
+// of guessing a state (ADR 0004: a missing event is not evidence of anything).
+function topBarTitle(leader: SessionView | undefined, otherActive: number, now: number): string {
+  if (!leader) return 'AgentBar - No sessions';
+  const name = shortName(leader.projectName);
+  if (leader.stale) {
+    const age = now - Date.parse(leader.lastSeenAt);
+    // An unreadable timestamp cannot name an age; say only what is known.
+    return Number.isNaN(age) ? `${name} - No updates` : `${name} - No updates · ${compactAge(age)}`;
+  }
+  return `${name} - ${leader.label}${otherActive > 0 ? ` +${otherActive}` : ''}`;
+}
+
 export function presentSnapshot(state: AgentBarState, options: PresentOptions = {}): IndicatorView {
   const now = options.now ?? Date.now();
   const staleAfterMs = options.staleAfterMs ?? defaultStaleAfterMs;
@@ -134,7 +168,13 @@ export function presentSnapshot(state: AgentBarState, options: PresentOptions = 
   const sessions = state.sessions
     .map((session) => toView(session, now, staleAfterMs, (names.get(session.projectName) ?? 0) > 1))
     .sort(compare);
-  const leader = [...sessions].sort((left, right) => statusPriority(right.status) - statusPriority(left.status))[0];
+  // A stale session only leads when nothing fresh exists: an old unanswered
+  // permission request must not hide the session you are using right now.
+  // `sessions` is already attention-first, most recent first, and the sort
+  // below is stable, so ties keep that order.
+  const fresh = sessions.filter((session) => !session.stale);
+  const pool = fresh.length > 0 ? fresh : sessions;
+  const leader = [...pool].sort((left, right) => statusPriority(right.status) - statusPriority(left.status))[0];
   // The top bar has room for one honest word: a stale leader reads "unknown"
   // there, while its menu row still names the last status actually observed.
   const summary = leader?.stale ? 'unknown' : leader?.status ?? 'idle';
@@ -145,6 +185,7 @@ export function presentSnapshot(state: AgentBarState, options: PresentOptions = 
     stale: leader?.stale ?? false,
     attentionCount: sessions.filter((session) => session.attention).length,
     sessions,
+    title: topBarTitle(leader, fresh.filter((session) => session !== leader && activeStatuses.includes(session.status)).length, now),
   };
 }
 

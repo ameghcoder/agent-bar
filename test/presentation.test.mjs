@@ -102,6 +102,7 @@ test('an empty snapshot presents a quiet indicator with no sessions', () => {
   const view = presentSnapshot(snapshot([]), { now });
   assert.deepEqual(view, {
     status: 'idle', label: 'Idle', intent: 'quiet', stale: false, attentionCount: 0, sessions: [],
+    title: 'AgentBar - No sessions',
   });
 });
 
@@ -297,4 +298,56 @@ test('withoutExpiredSessions drops sessions older than the window and keeps the 
 test('a future last-seen time (clock ran backwards) is kept, not expired', () => {
   const sessions = [session('skewed', 'running', -hours(48))];
   assert.equal(withoutExpiredSessions(sessions, now).length, 1);
+});
+
+// T312: the top bar reads "<project> - <State>" for the session that matters.
+test('a single fresh session reads "project - State"', () => {
+  assert.equal(view([session('alpha', 'running', 1)]).title, 'alpha - Working');
+});
+
+test('+N counts only the other fresh active sessions, not idle, completed, or stale ones', () => {
+  const result = view([
+    session('alpha', 'permission_required', 1),
+    session('bravo', 'running', 2),
+    session('charlie', 'waiting', 3),
+    session('delta', 'idle', 1),
+    session('echo', 'completed', 1),
+    session('stale-one', 'running', 600),
+    session('failed-one', 'failed', 1),
+  ]);
+  assert.equal(result.title, 'alpha - Permission needed +2');
+});
+
+test('a fresh session leads over an older stale one, whatever the stale status', () => {
+  const result = view([session('old', 'permission_required', 600), session('new', 'idle', 1)]);
+  assert.equal(result.title, 'new - Idle');
+  assert.deepEqual([result.status, result.intent, result.stale], ['idle', 'quiet', false]);
+});
+
+test('when every session is stale the title says how long it has been quiet, not a guessed state', () => {
+  const result = view([session('old', 'permission_required', 600)]);
+  assert.equal(result.title, 'old - No updates · 10h');
+  assert.deepEqual([result.intent, result.stale], ['unknown', true]);
+  assert.equal(after([session('old', 'running', 5)]).title, 'old - No updates · 5m');
+  assert.equal(after([session('old', 'running', 60 * 24 * 3)]).title, 'old - No updates · 3d');
+});
+
+test('a long project name is cut to 18 characters so the top bar does not grow', () => {
+  const result = view([session('a'.repeat(30), 'running', 1)]);
+  assert.equal(result.title, `${'a'.repeat(17)}… - Working`);
+  assert.equal(view([session('b'.repeat(18), 'running', 1)]).title, `${'b'.repeat(18)} - Working`);
+});
+
+test('the title never carries a path hint or raw data', () => {
+  const result = view([
+    session('same', 'running', 1, { projectPath: '/home/secret/one/same' }),
+    session('same', 'running', 2, { sessionId: 'other', projectPath: '/home/secret/two/same' }),
+  ]);
+  assert.equal(result.title, 'same - Working +1');
+  assert.doesNotMatch(result.title, /secret|one|two/);
+});
+
+test('an unreadable timestamp on the only session names no age', () => {
+  const result = view([session('odd', 'running', 0, { lastSeenAt: 'not a date' })]);
+  assert.equal(result.title, 'odd - No updates');
 });

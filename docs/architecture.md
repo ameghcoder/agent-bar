@@ -46,6 +46,23 @@ When sessions disagree, the top bar shows one status. Most urgent first:
 `intent` is the visual vocabulary the extension styles against. It is
 deliberately not a colour: the renderer decides that.
 
+### The top-bar title
+
+`IndicatorView.title` is the complete top-bar text, built here so every renderer
+shows the same words and none computes them:
+
+- Fresh leader: `<project> - <Label>`, plus ` +N` where N is the number of
+  *other fresh active* sessions (running, waiting, permission required). Idle,
+  completed, failed, and stale sessions are not counted.
+- Only stale sessions: `<project> - No updates · <age>` (`5m`, `10h`, `3d`).
+- No sessions: `AgentBar - No sessions`.
+- The project name is cut to 18 characters with an ellipsis. No path hint, and
+  nothing from `raw`, ever appears in the title.
+
+The leader is the highest-priority session among the *fresh* ones, ties broken
+by the menu order below. Stale sessions lead only when none are fresh, so an old
+unanswered request can no longer hide the session you are using now.
+
 ### Ordering in the menu
 
 Attention states (`permission_required`, `waiting`, `failed`) sort above
@@ -71,9 +88,10 @@ decay.
 
 A stale session keeps the status it was last observed in — a permission request
 stays pending until an event replaces it, per the product invariant. What
-changes is confidence: its `intent` drops to `unknown`, and if it leads the
-aggregate the top bar reads "Status unknown" rather than continuing to claim
-"Permission needed". The menu row still names the observed status, so the fact
+changes is confidence: its `intent` drops to `unknown`, and the top bar never
+claims "Permission needed" for it. A stale session only leads the aggregate when
+no fresh session exists; then `title` reads `<project> - No updates · <age>`
+(ADR 0004 amendment). The menu row still names the observed status, so the fact
 is not lost, only the certainty.
 
 Degenerate clocks degrade safely. A future `lastSeenAt` (clock ran backwards) is

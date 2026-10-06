@@ -23,3 +23,16 @@ deduped by a stable key, and never on startup replay of old state.
 - The default view model excludes `raw`, prompts, tool input, and full
   project paths; a short path hint may appear in the menu only to
   disambiguate duplicate project names.
+
+## Amendment (2026-10-06): top-bar wording for stale sessions
+
+The principle is unchanged: a stale session is never shown as a confirmed
+state, failure, or completion. What changed is the words. A bare "Status
+unknown" in the top bar told the user nothing and, because the leader was
+chosen by status priority alone, an old stale request could hide a fresh
+session. The top bar now reads `<project> - <State>` for the leading fresh
+session, with `+N` for other fresh active sessions. Stale sessions only lead
+when nothing fresh exists, and then the bar reads
+`<project> - No updates · <age>`: what we actually know (how long it has been
+quiet), not a guessed state. The menu row still names the last observed status.
+
