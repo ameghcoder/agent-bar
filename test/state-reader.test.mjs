@@ -11,12 +11,13 @@ import test from 'node:test';
 // a real temporary directory and real atomic renames - see the harness for
 // the exact scripted sequence.
 const harness = fileURLToPath(new URL('fixtures/gjs-state-reader-harness.js', import.meta.url));
+const unreadableHarness = fileURLToPath(new URL('fixtures/gjs-unreadable-state-harness.js', import.meta.url));
 
-async function runHarness(t) {
+async function runHarness(t, script = harness) {
   const directory = await mkdtemp(join(tmpdir(), 'agentbar-state-reader-'));
   t.after(() => rm(directory, { recursive: true, force: true }));
   const { code, lines } = await new Promise((resolve, reject) => {
-    const child = spawn('gjs', ['-m', harness, directory], { stdio: ['ignore', 'pipe', 'pipe'] });
+    const child = spawn('gjs', ['-m', script, directory], { stdio: ['ignore', 'pipe', 'pipe'] });
     let stdout = '';
     let stderr = '';
     child.stdout.setEncoding('utf8').on('data', (data) => { stdout += data; });
@@ -59,4 +60,10 @@ test('a real StateWatcher, driven by the real gjs runtime against real atomic re
 
   const notificationCount = lines.filter((line) => line.kind === 'notifications').reduce((total, line) => total + line.notifications.length, 0);
   assert.equal(notificationCount, 2, 'the identical rewrite in step 2 must not add a third notification');
+});
+
+test('a state path that exists but cannot be read is unavailable, never an empty "no sessions" view', { skip: process.platform !== 'linux' }, async (t) => {
+  const { lines } = await runHarness(t, unreadableHarness);
+  assert.deepEqual(lines.map((line) => line.kind), ['unavailable']);
+  assert.match(lines[0].message, /Cannot read the state file/);
 });
