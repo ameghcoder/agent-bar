@@ -45,6 +45,7 @@ test('a real StateWatcher, driven by the real gjs runtime against real atomic re
   assert.deepEqual(lines[0].view, {
     status: 'idle', label: 'Idle', intent: 'quiet', stale: false, attentionCount: 0, sessions: [],
     title: 'AgentBar - No sessions',
+    leaderId: null,
   }, 'no state file yet reads as empty/idle, not an error');
 
   assert.equal(lines[1].view.status, 'permission_required');

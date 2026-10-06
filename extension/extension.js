@@ -174,12 +174,13 @@ export default class AgentBarExtension extends Extension {
             && !Main.layoutManager.primaryMonitor?.inFullscreen;
     }
 
-    // Starts, keeps, or stops the pulse for this view. The key is the intent
-    // plus the title, so a new project or state pulses again but an identical
-    // re-read (every state write, every 30 s) does not restart it.
+    // Starts, keeps, or stops the pulse for this view. The key is the intent,
+    // status, and leading session - deliberately not the title, whose time-ago
+    // text changes every minute. A new project or state pulses again; an
+    // identical re-read (every state write, every 30 s) does not restart it.
     _applyAnimation(view) {
         const pulse = PULSE_BY_INTENT[view.intent];
-        const key = pulse ? `${view.intent}|${view.title}` : '';
+        const key = pulse ? `${view.intent}|${view.status}|${view.leaderId}` : '';
         if (key === this._animationKey)
             return;
         this._stopAnimation();

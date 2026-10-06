@@ -65,8 +65,12 @@ export interface IndicatorView {
   stale: boolean;
   attentionCount: number;
   sessions: SessionView[];
-  // The complete top-bar text: "<project> - <State>", see topBarTitle.
+  // The complete top-bar text, see topBarTitle.
   title: string;
+  // The session the title describes. Stable while the time text in the title
+  // changes, so a renderer can key an animation on it without restarting every
+  // minute. null when there are no sessions.
+  leaderId: string | null;
 }
 
 export interface PresentOptions {
@@ -107,15 +111,6 @@ function shortName(name: string): string {
   return points.length > titleNameLimit ? `${points.slice(0, titleNameLimit - 1).join('')}…` : name;
 }
 
-// Compact age for the stale title: "5m", "10h", "3d". Only reached for sessions
-// already past the stale threshold, so it is never "just now".
-function compactAge(ms: number): string {
-  const minutes = Math.floor(ms / 60_000);
-  if (minutes < 60) return `${minutes}m`;
-  const hours = Math.floor(minutes / 60);
-  return hours < 24 ? `${hours}h` : `${Math.floor(hours / 24)}d`;
-}
-
 function toView(session: SessionState, now: number, staleAfterMs: number, ambiguous: boolean): SessionView {
   // An unreadable timestamp cannot prove freshness, so it counts as stale
   // rather than silently passing the >= test as NaN would.
@@ -146,18 +141,19 @@ function compare(left: SessionView, right: SessionView): number {
   return seen !== 0 ? seen : left.sessionId.localeCompare(right.sessionId);
 }
 
-// "<project> - <State>", plus " +N" for the other fresh active sessions. When
-// only stale sessions remain the title says how long it has been quiet instead
-// of guessing a state (ADR 0004: a missing event is not evidence of anything).
-function topBarTitle(leader: SessionView | undefined, otherActive: number, now: number): string {
+// "<project> - <State> - <time ago>", plus " +N" for the other fresh sessions
+// that are `running`. Waiting and permission sessions are not counted: they
+// are blocked on you, not running, and the menu shows them. When only stale
+// sessions remain the title says "No updates" instead of guessing a state
+// (ADR 0004: a missing event is not evidence of anything).
+function topBarTitle(leader: SessionView | undefined, otherRunning: number): string {
   if (!leader) return 'AgentBar - No sessions';
   const name = shortName(leader.projectName);
   if (leader.stale) {
-    const age = now - Date.parse(leader.lastSeenAt);
     // An unreadable timestamp cannot name an age; say only what is known.
-    return Number.isNaN(age) ? `${name} - No updates` : `${name} - No updates · ${compactAge(age)}`;
+    return leader.relative === 'unknown' ? `${name} - No updates` : `${name} - No updates - ${leader.relative}`;
   }
-  return `${name} - ${leader.label}${otherActive > 0 ? ` +${otherActive}` : ''}`;
+  return `${name} - ${leader.label} - ${leader.relative}${otherRunning > 0 ? ` +${otherRunning}` : ''}`;
 }
 
 export function presentSnapshot(state: AgentBarState, options: PresentOptions = {}): IndicatorView {
@@ -185,7 +181,8 @@ export function presentSnapshot(state: AgentBarState, options: PresentOptions = 
     stale: leader?.stale ?? false,
     attentionCount: sessions.filter((session) => session.attention).length,
     sessions,
-    title: topBarTitle(leader, fresh.filter((session) => session !== leader && activeStatuses.includes(session.status)).length, now),
+    title: topBarTitle(leader, fresh.filter((session) => session !== leader && session.status === 'running').length),
+    leaderId: leader?.sessionId ?? null,
   };
 }
 

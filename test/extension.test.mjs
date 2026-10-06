@@ -98,3 +98,9 @@ test('extension.js animation stays finite, honours reduce-motion, and is cleaned
   assert.match(disable, /_stopAnimation\(\)/, 'disable() must remove the timer and transitions');
   assert.match(disable, /\.disconnect\(this\._animationsChangedId\)/, 'disable() must disconnect the settings handler');
 });
+
+test('extension.js keys the pulse on the leading session, not on the title whose time text changes', async () => {
+  const source = await readFile(new URL('extension/extension.js', root), 'utf8');
+  assert.match(source, /view\.leaderId/);
+  assert.doesNotMatch(source, /\$\{view\.intent\}\|\$\{view\.title\}/);
+});

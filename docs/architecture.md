@@ -51,13 +51,17 @@ deliberately not a colour: the renderer decides that.
 `IndicatorView.title` is the complete top-bar text, built here so every renderer
 shows the same words and none computes them:
 
-- Fresh leader: `<project> - <Label>`, plus ` +N` where N is the number of
-  *other fresh active* sessions (running, waiting, permission required). Idle,
-  completed, failed, and stale sessions are not counted.
-- Only stale sessions: `<project> - No updates · <age>` (`5m`, `10h`, `3d`).
+- Fresh leader: `<project> - <Label> - <time ago>`, plus ` +N` where N is the
+  number of *other fresh sessions whose status is `running`*. Waiting,
+  permission, idle, completed, failed, and stale sessions are not counted: the
+  first two are blocked on you rather than running, and the menu shows them.
+- Only stale sessions: `<project> - No updates - <time ago>`.
 - No sessions: `AgentBar - No sessions`.
 - The project name is cut to 18 characters with an ellipsis. No path hint, and
   nothing from `raw`, ever appears in the title.
+- `leaderId` names the session the title describes. The time text changes every
+  minute, so a renderer keys animation on `leaderId` and status, never on the
+  title.
 
 The leader is the highest-priority session among the *fresh* ones, ties broken
 by the menu order below. Stale sessions lead only when none are fresh, so an old
