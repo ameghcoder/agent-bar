@@ -6,8 +6,9 @@ import test from 'node:test';
 
 // ADR 0007's dependency direction, checked on real import statements:
 // src/core imports nothing outside itself; an agent imports only src/core and
-// itself; an OS folder imports only src/core and itself. src/cli is the one
-// composition root and may import anything.
+// itself; an OS folder imports only src/core and itself; the doctor runner
+// imports only src/core. src/cli is the one composition root and may import
+// anything.
 const root = fileURLToPath(new URL('../', import.meta.url));
 
 async function sourceFiles(top) {
@@ -25,6 +26,7 @@ function zone(path) {
 const allowed = (from, to) => {
   if (from === 'src/cli') return true;
   if (from === 'src/core') return to === 'src/core';
+  if (from === 'src/doctor') return to === 'src/doctor' || to === 'src/core';
   if (from.startsWith('agents/') || from.startsWith('os/')) return to === from || to === 'src/core' || to === 'contract';
   return true;
 };

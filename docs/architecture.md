@@ -25,9 +25,10 @@ capture never waits on the extension.
 |---|---|---|
 | `contract/` | JSON Schemas, presentation rules as data, fixtures | nothing |
 | `src/core/` | capture (lock, timestamp, retention, atomic write), snapshot parsing, presentation, paths, version | only `src/core` |
-| `agents/claude-code/` | the receiver, payload translation, compaction carry-over, project root, hook install/merge | `src/core`, itself |
-| `os/linux/` | the GNOME Shell extension and its scripts | `src/core` (via the copied `lib/`), itself |
-| `src/doctor/`, `src/cli/` | the doctor runner and the `agentbar` commands, which compose the rest | anything |
+| `agents/claude-code/` | the receiver, payload translation, compaction carry-over, project root, hook install/merge, Claude doctor checks | `src/core`, itself |
+| `os/linux/` | the GNOME Shell extension, its scripts, GNOME doctor checks | `src/core` (via the copied `lib/`), itself |
+| `src/doctor/` | the doctor runner, AgentBar's own checks, report formatting | `src/core` |
+| `src/cli/` | the `agentbar` commands: the one place that composes agents and OS | anything |
 
 `test/layout.test.mjs` checks these rules on the real import statements.
 Capture in `src/core/state.ts` takes a `CaptureAdapter` (`normalize`,

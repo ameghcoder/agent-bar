@@ -1,32 +1,17 @@
-import { execFile } from 'node:child_process';
 import { access, readFile, stat } from 'node:fs/promises';
 import { homedir } from 'node:os';
-import { promisify } from 'node:util';
-import { isRecord } from '../core/events.js';
+import { errorCode, type Check } from '../core/checks.js';
 import { getPaths } from '../core/paths.js';
 import { parseSnapshot } from '../core/snapshot.js';
-import { hookEvents, isAgentBarHandler, ownedPaths, type ClaudeHookName } from '../../agents/claude-code/install/merge.js';
 
-export type CheckLevel = 'pass' | 'warn' | 'fail';
-
-export interface Check {
-  name: string;
-  level: CheckLevel;
-  detail: string;
-}
+export type { Check, CheckLevel } from '../core/checks.js';
 
 export interface DoctorOptions {
   version: string;
-  settingsPath: string;
   minimumNode: string;
-  exec?: (file: string, args: string[]) => Promise<string>;
-}
-
-const execFileAsync = promisify(execFile);
-
-async function defaultExec(file: string, args: string[]): Promise<string> {
-  const { stdout } = await execFileAsync(file, args, { timeout: 5000, env: process.env });
-  return stdout;
+  // Each agent's and OS folder's checks, in report order. src/cli supplies
+  // them, so this runner never imports an agent or an OS folder.
+  groups: (() => Promise<Check[]>)[];
 }
 
 export function redactHome(text: string): string {
@@ -42,10 +27,6 @@ function compareVersions(actual: string, minimum: string): number {
     if (difference !== 0) return difference;
   }
   return 0;
-}
-
-function errorCode(error: unknown): string {
-  return isRecord(error) && typeof error.code === 'string' ? error.code : 'error';
 }
 
 async function checkStateDirectory(directory: string): Promise<Check> {
@@ -79,85 +60,17 @@ async function checkSnapshot(path: string): Promise<Check> {
   return { name, level: 'pass', detail };
 }
 
-async function checkSettings(path: string): Promise<{ check: Check; settings?: Record<string, unknown> }> {
-  const name = 'Claude settings';
-  let text: string;
-  try {
-    text = await readFile(path, 'utf8');
-  } catch (error) {
-    if (errorCode(error) === 'ENOENT') return { check: { name, level: 'warn', detail: `${path} does not exist; install-hooks --apply will create it.` } };
-    return { check: { name, level: 'fail', detail: `${path} is not readable (${errorCode(error)}).` } };
-  }
-  try {
-    const value: unknown = JSON.parse(text);
-    if (!isRecord(value)) return { check: { name, level: 'fail', detail: `${path} is not a JSON object.` } };
-    return { check: { name, level: 'pass', detail: path }, settings: value };
-  } catch {
-    return { check: { name, level: 'fail', detail: `${path} is not valid JSON.` } };
-  }
-}
-
-async function checkHooks(settings: Record<string, unknown> | undefined): Promise<Check> {
-  const name = 'Claude hooks';
-  const expected = Object.keys(hookEvents) as ClaudeHookName[];
-  const handlers = new Map<ClaudeHookName, string[]>();
-  for (const event of expected) {
-    const groups = isRecord(settings?.hooks) ? settings.hooks[event] : undefined;
-    if (!Array.isArray(groups)) continue;
-    const commands = groups.flatMap((group) => (isRecord(group) && Array.isArray(group.hooks) ? group.hooks.filter(isAgentBarHandler) : []))
-      .map((handler) => (handler as { command: string }).command);
-    if (commands.length) handlers.set(event, commands);
-  }
-  if (handlers.size === 0) return { name, level: 'fail', detail: 'No AgentBar handlers found. Run: agentbar install-hooks --apply' };
-  const missing = expected.filter((event) => !handlers.has(event));
-  if (missing.length) return { name, level: 'fail', detail: `Missing AgentBar handlers for ${missing.join(', ')}. Run: agentbar install-hooks --apply` };
-  const targets = new Set([...handlers.values()].flat().map(ownedPaths).flatMap((paths) => (paths ? [paths.node, paths.receiver] : [])));
-  for (const target of targets) {
-    try {
-      await access(target);
-    } catch {
-      const what = target.endsWith('claude-hook.js') ? 'receiver' : 'node executable';
-      return { name, level: 'fail', detail: `A hook's ${what} is missing (moved checkout or Node upgrade?). Run: agentbar install-hooks --apply` };
-    }
-  }
-  return { name, level: 'pass', detail: `AgentBar handlers present for all ${expected.length} events; receiver found.` };
-}
-
-async function checkCommand(name: string, exec: DoctorOptions['exec'], file: string, args: string[], describe: (stdout: string) => string): Promise<Check> {
-  try {
-    const stdout = await (exec ?? defaultExec)(file, args);
-    return { name, level: 'pass', detail: describe(stdout.trim()) };
-  } catch (error) {
-    const code = errorCode(error);
-    if (code === 'ENOENT') return { name, level: 'warn', detail: `${file} is not installed; the GNOME extension needs it.` };
-    return { name, level: 'warn', detail: `${file} ${args.join(' ')} failed (${code}).` };
-  }
-}
-
-function checkDisplaySession(): Check {
-  const name = 'Display session';
-  const type = process.env.XDG_SESSION_TYPE ?? '';
-  const desktop = process.env.XDG_CURRENT_DESKTOP ?? '';
-  if (!type && !desktop) return { name, level: 'warn', detail: 'No XDG_SESSION_TYPE or XDG_CURRENT_DESKTOP; not running inside a desktop session.' };
-  const gnome = /gnome/i.test(desktop);
-  return { name, level: gnome ? 'pass' : 'warn', detail: `${desktop || 'unknown desktop'} on ${type || 'unknown session type'}${gnome ? '' : '; AgentBar supports GNOME Shell only'}.` };
-}
-
 export async function runDoctor(options: DoctorOptions): Promise<Check[]> {
   const paths = getPaths();
   const nodeOk = compareVersions(process.version, options.minimumNode) >= 0;
-  const settings = await checkSettings(options.settingsPath);
-  return [
+  const checks: Check[] = [
     { name: 'AgentBar version', level: 'pass', detail: options.version },
     { name: 'Node version', level: nodeOk ? 'pass' : 'fail', detail: `${process.version}${nodeOk ? '' : ` is below the required ${options.minimumNode}`}` },
     await checkStateDirectory(paths.directory),
     await checkSnapshot(paths.state),
-    settings.check,
-    await checkHooks(settings.settings),
-    await checkCommand('GNOME Shell', options.exec, 'gnome-shell', ['--version'], (out) => out),
-    checkDisplaySession(),
-    await checkCommand('GNOME extensions tool', options.exec, 'gnome-extensions', ['version'], (out) => `gnome-extensions ${out}; AgentBar extension check is added with the extension build.`),
   ];
+  for (const group of options.groups) checks.push(...await group());
+  return checks;
 }
 
 export function formatReport(checks: Check[]): { stdout: string; stderr: string; failed: Check[] } {

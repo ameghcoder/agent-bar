@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 import { Command } from 'commander';
 import { applyInstall, applyUninstall, defaultSettingsPath, type ApplyOptions, type ApplyReport } from '../../agents/claude-code/install/apply.js';
+import { claudeCodeChecks } from '../../agents/claude-code/doctor.js';
+import { linuxChecks } from '../../os/linux/doctor.js';
 import { formatReport, runDoctor } from '../doctor/doctor.js';
 import { createHooksConfig, receiverCommand } from '../../agents/claude-code/install/hooks-config.js';
 import { version } from '../core/version.js';
@@ -71,7 +73,12 @@ Read-only. Reports PASS, WARN, or FAIL per check and exits 1 if any required
 check fails. Output shows paths relative to ~ and never prints hook payloads,
 session names, or settings content.`)
   .action(async (options: { settings?: string }) => {
-    const checks = await runDoctor({ version, minimumNode, settingsPath: options.settings ?? defaultSettingsPath() });
+    const settingsPath = options.settings ?? defaultSettingsPath();
+    const checks = await runDoctor({
+      version,
+      minimumNode,
+      groups: [() => claudeCodeChecks(settingsPath), () => linuxChecks()],
+    });
     const report = formatReport(checks);
     console.log(report.stdout);
     console.error(report.stderr);
