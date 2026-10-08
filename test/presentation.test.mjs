@@ -175,10 +175,9 @@ test('entering an attention state notifies once, and repeating the same snapshot
   const before = view([session('alpha', 'running', 2)]);
   const asked = view([{ ...session('alpha', 'permission_required', 1), lastMessage: 'Claude needs permission' }]);
   assert.deepEqual(notificationsFor(before, asked), [{
-    key: `alpha:permission_required:${minutes(1)}`,
     sessionId: 'alpha',
     title: 'Permission needed',
-    body: 'alpha: Claude needs permission',
+    body: 'alpha',
     intent: 'attention',
     urgency: 'critical',
   }]);
@@ -214,14 +213,27 @@ test('going stale is not an event, so it raises no notification', () => {
   assert.deepEqual(notificationsFor(fresh, stale), []);
 });
 
-test('a second permission request in the same session notifies again under a new key', () => {
+test('a second permission request in the same session notifies again', () => {
+  const working = view([session('alpha', 'running', 7)]);
   const first = view([session('alpha', 'permission_required', 5)]);
-  const working = view([session('alpha', 'running', 3)]);
+  const between = view([session('alpha', 'running', 3)]);
   const second = view([session('alpha', 'permission_required', 1)]);
-  const keys = [...notificationsFor(undefined, first), ...notificationsFor(first, working), ...notificationsFor(working, second)]
-    .map((item) => item.key);
-  assert.deepEqual(keys, [`alpha:permission_required:${minutes(1)}`]);
-  assert.notEqual(`alpha:permission_required:${minutes(5)}`, `alpha:permission_required:${minutes(1)}`);
+  const titles = [notificationsFor(working, first), notificationsFor(first, between), notificationsFor(between, second)]
+    .map((batch) => batch.map((item) => item.title));
+  assert.deepEqual(titles, [['Permission needed'], [], ['Permission needed']]);
+});
+
+// T318: a notification's text is the project name and a fixed label. Claude
+// writes the message for permission, notification, and failure events, so it
+// may hold a command, a path, or an error dump.
+test('notifications never carry Claude-authored text', () => {
+  const before = view([session('alpha', 'running', 3)]);
+  for (const status of ['permission_required', 'waiting', 'failed', 'completed']) {
+    const after = view([session('alpha', status, 1, { lastMessage: 'rm -rf /home/secret/key.pem' })]);
+    const [notification] = notificationsFor(before, after);
+    assert.ok(notification, status);
+    assert.doesNotMatch(JSON.stringify(notification), /rm -rf|secret|key\.pem/, status);
+  }
 });
 
 // ADR 0004 allows a short path hint in the menu, only where project names collide.

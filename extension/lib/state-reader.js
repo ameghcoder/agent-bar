@@ -1,7 +1,7 @@
 import GLib from 'gi://GLib';
 import Gio from 'gi://Gio';
 
-import { parseSnapshot, withoutExpiredSessions } from './snapshot.js';
+import { maxSnapshotBytes, parseSnapshot, withoutExpiredSessions } from './snapshot.js';
 import { notificationsFor, presentSnapshot } from './presentation.js';
 
 // Shell-independent: only GLib/Gio, no St/Clutter/PanelMenu/Main, so this
@@ -34,6 +34,9 @@ export class StateWatcher {
     this._debounceSource = 0;
     this._fallbackSource = 0;
     this._previousView = undefined;
+    // Bumped by every read; a read whose number is no longer current drops its
+    // result, so an older read finishing late cannot overwrite a newer view.
+    this._generation = 0;
     this._destroyed = false;
   }
 
@@ -95,24 +98,68 @@ export class StateWatcher {
     });
   }
 
+  // The size is checked before the contents are loaded, so an oversized file
+  // never enters GNOME Shell's memory, and again after loading, since the file
+  // can be replaced between the two calls.
   _reread() {
+    const generation = ++this._generation;
+    const current = () => !this._destroyed && generation === this._generation;
     const file = Gio.File.new_for_path(this._statePath);
-    file.load_contents_async(null, (source, result) => {
-      if (this._destroyed) return;
-      let text;
+    file.query_info_async('standard::size', Gio.FileQueryInfoFlags.NONE, GLib.PRIORITY_DEFAULT, null, (source, result) => {
+      if (!current()) return;
+      let size;
       try {
-        const [, contents] = source.load_contents_finish(result);
-        text = new TextDecoder().decode(contents);
+        size = source.query_info_finish(result).get_size();
       } catch (error) {
-        // Only NOT_FOUND means "nothing written yet". `instanceof Gio.IOErrorEnum`
-        // is true for every Gio error, so it would hide permission and
-        // is-a-directory failures behind an empty "no sessions" view.
-        if (error.matches?.(Gio.IOErrorEnum, Gio.IOErrorEnum.NOT_FOUND)) {
-          // No state written yet is not a failure; it is an honest "no sessions".
-          this._publish(presentSnapshot(emptySnapshot(this._now())));
-        } else {
-          this._onUnavailable(`Cannot read the state file: ${error.message}`);
+        this._readFailed(error);
+        return;
+      }
+      if (size > maxSnapshotBytes) {
+        this._tooLarge(size);
+        return;
+      }
+      source.load_contents_async(null, (_, loaded) => {
+        if (!current()) return;
+        let contents;
+        try {
+          [, contents] = source.load_contents_finish(loaded);
+        } catch (error) {
+          this._readFailed(error);
+          return;
         }
+        if (contents.length > maxSnapshotBytes) {
+          this._tooLarge(contents.length);
+          return;
+        }
+        this._present(new TextDecoder().decode(contents));
+      });
+    });
+  }
+
+  _readFailed(error) {
+    // Only NOT_FOUND means "nothing written yet". `instanceof Gio.IOErrorEnum`
+    // is true for every Gio error, so it would hide permission and
+    // is-a-directory failures behind an empty "no sessions" view.
+    if (error.matches?.(Gio.IOErrorEnum, Gio.IOErrorEnum.NOT_FOUND)) {
+      // No state written yet is not a failure; it is an honest "no sessions".
+      this._present(null);
+    } else {
+      this._onUnavailable(`Cannot read the state file: ${error.message}`);
+    }
+  }
+
+  _tooLarge(bytes) {
+    this._onUnavailable(`State file is too large (${bytes} bytes, limit ${maxSnapshotBytes}).`);
+  }
+
+  // `text` is null when no state file exists yet. Everything after the read
+  // runs inside one try: an exception here would otherwise escape from a GLib
+  // callback into GNOME Shell's log on every re-read.
+  _present(text) {
+    try {
+      const now = this._now();
+      if (text === null) {
+        this._publish(presentSnapshot(emptySnapshot(now)));
         return;
       }
       const parsed = parseSnapshot(text);
@@ -122,12 +169,16 @@ export class StateWatcher {
       }
       // presentSnapshot stays pure and shows whatever it is given; sessions past
       // the retention window are dropped here, where state is read.
-      const now = this._now();
       const state = { ...parsed.state, sessions: withoutExpiredSessions(parsed.state.sessions, now) };
       this._publish(presentSnapshot(state, { now, staleAfterMs: this._staleAfterMs }));
-    });
+    } catch (error) {
+      this._onUnavailable(`Cannot present the state: ${error.message}`);
+    }
   }
 
+  // Startup rule: the first view published is the baseline and notifies
+  // nothing, even when earlier reads were unavailable, because nothing proves
+  // its contents are newer than the reader (ADR 0004).
   _publish(view) {
     const notifications = notificationsFor(this._previousView, view);
     this._previousView = view;

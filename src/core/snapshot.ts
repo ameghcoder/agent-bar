@@ -3,9 +3,15 @@ import { eventTypes, isRecord, statuses, type EventType, type Status } from './v
 export const schemaVersion = 1;
 
 // A session with no event for this long is gone, whatever its status: the
-// writer drops it from state.json and the presenter ignores it. Longer than the
+// writer drops it from state.json and the extension's reader drops it before
+// presenting (presentSnapshot stays pure and shows what it is given). Longer than the
 // 10-minute stale threshold on purpose, so an overnight terminal survives.
 export const sessionRetentionMs = 24 * 60 * 60 * 1000;
+
+// Readers refuse a state file larger than this before loading it. Sessions
+// expire after a day, so a real snapshot stays far below it; anything bigger
+// is corrupt or hostile, and the extension must not pull it into GNOME Shell.
+export const maxSnapshotBytes = 1024 * 1024;
 
 export interface SessionState {
   sessionId: string;
@@ -67,7 +73,7 @@ export function parseSnapshot(text: string): SnapshotParseResult {
 }
 
 // Unreadable or future timestamps are kept: they cannot prove the session old,
-// and the presenter already shows them as stale rather than hiding them.
+// and the presentation model shows an unreadable one as stale rather than hiding it.
 export function withoutExpiredSessions<T extends { lastSeenAt: string }>(sessions: readonly T[], now: number): T[] {
   return sessions.filter((session) => !(now - Date.parse(session.lastSeenAt) > sessionRetentionMs));
 }

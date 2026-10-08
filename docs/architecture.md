@@ -105,7 +105,7 @@ A stale session keeps the status it was last observed in — a permission reques
 stays pending until an event replaces it, per the product invariant. What
 changes is confidence: its `intent` drops to `unknown`, and the top bar never
 claims "Permission needed" for it. A stale session only leads the aggregate when
-no fresh session exists; then `title` reads `<project> - No updates · <age>`
+no fresh session exists; then `title` reads `<project> - No updates - <time ago>`
 (ADR 0004 amendment). The menu row still names the observed status, so the fact
 is not lost, only the certainty.
 
@@ -134,8 +134,15 @@ decides *how* (T305).
   silent.
 - `previous === undefined` yields nothing, so restarting GNOME Shell never
   replays old state as new alerts (ADR 0004).
-- Keys are `sessionId:status:lastSeenAt`, stable across identical reads: the
-  same snapshot twice produces no second notification.
+- A transition is a session's status differing between two consecutive views.
+  The same snapshot read twice notifies nothing; a second permission request
+  after work in between notifies again.
+- Title is the status label and body is the project name, nothing else. The
+  session's `message` is never used: Claude writes it for permission,
+  notification, and failure events, so it may hold a command, a path, or an
+  error dump.
+- The first view `StateWatcher` publishes is the baseline, even when earlier
+  reads were unavailable: nothing proves its contents are newer than the reader.
 - Going stale is not an event and raises nothing.
 
 ### What never reaches the view
@@ -166,7 +173,7 @@ real atomic renames, rather than mocking the filesystem or GNOME APIs.
 
 `extension/extension.js` is the one Shell-dependent file: it owns the
 `PanelMenu.Button`, renders `IndicatorView` fields (`intent` chooses the icon;
-`label` is the top-bar text) and builds menu rows from `sessions`, and
+`title` is the top-bar text; `health` is the menu's health line) and builds menu rows from `sessions`, and
 forwards `StateWatcher`'s callbacks. It never computes a status, priority,
 staleness, or notification urgency itself - including urgency, which it
 would be tempting to infer from `intent` in the Shell layer, but `intent`
@@ -213,12 +220,19 @@ will ever deliver.
 
 A missing state file is read as an empty, `idle` snapshot: not an error, no
 diagnostic. Every other read failure - malformed JSON, an unsupported schema
-version, a permission error - never throws; it is reported once through
+version, a permission error, a file larger than `maxSnapshotBytes` (1 MiB,
+checked before loading and again after), or an exception while presenting -
+never throws; it is reported once through
 `onUnavailable(message)` with `parseSnapshot`'s own safe message text, and the
 extension renders a fixed "Status unavailable" state until a later read
 succeeds. `error.matches(Gio.IOErrorEnum, Gio.IOErrorEnum.NOT_FOUND)` is what
 distinguishes the two cases; also verified directly against the real Gio
 error object, not assumed from its shape.
+
+Each read takes a generation number, and a read that is no longer the newest
+drops its result. A debounced re-read and the fallback timer can overlap, and
+without this an older read finishing late could overwrite a newer view and
+raise a notification for a state that has already passed.
 
 ### Packaging note
 

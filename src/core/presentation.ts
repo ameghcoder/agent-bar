@@ -164,7 +164,9 @@ function topBarTitle(leader: SessionView | undefined, otherRunning: number): str
 // during a long tool call still reads as receiving.
 function healthLine(sessions: SessionView[], now: number, staleAfterMs: number): string {
   if (sessions.length === 0) return 'No events yet · run "agentbar install-hooks"';
-  const newest = Math.max(...sessions.map((session) => Date.parse(session.lastSeenAt)).filter((time) => !Number.isNaN(time)));
+  const newest = sessions
+    .map((session) => Date.parse(session.lastSeenAt))
+    .reduce((latest, time) => (time > latest ? time : latest), Number.NEGATIVE_INFINITY);
   if (!Number.isFinite(newest)) return 'No recent events';
   const relative = relativeTime(new Date(newest).toISOString(), now);
   const age = relative === 'just now' ? relative : `last ${relative}`;
@@ -202,8 +204,10 @@ export function presentSnapshot(state: AgentBarState, options: PresentOptions = 
   };
 }
 
-// ADR 0004: notify once per meaningful transition per session, deduped by a
-// stable key, and never on startup replay of state that predates the reader.
+// ADR 0004: notify once per meaningful transition per session, and never on
+// startup replay of state that predates the reader. A transition is a session's
+// status differing between two consecutive views, so an identical re-read is
+// silent and a second permission request after work in between notifies again.
 // Urgency lives here, not in the extension: permission blocks Claude and
 // gets the strongest tier without repeatedly stealing focus; failed is a
 // real problem; waiting only asks for input; completed is informational.
@@ -217,8 +221,10 @@ const urgencyByStatus: Partial<Record<Status, Urgency>> = {
 };
 const notifyStatuses = Object.keys(urgencyByStatus) as readonly Status[];
 
+// Title and body are fixed text: the status label and the project name. Never
+// `message`, which Claude writes for permission, notification, and failure
+// events and which may hold a command, a path, or an error dump.
 export interface NotificationView {
-  key: string;
   sessionId: string;
   title: string;
   body: string;
@@ -232,10 +238,9 @@ export function notificationsFor(previous: IndicatorView | undefined, next: Indi
   return next.sessions
     .filter((session) => notifyStatuses.includes(session.status) && before.get(session.sessionId) !== session.status)
     .map((session) => ({
-      key: `${session.sessionId}:${session.status}:${session.lastSeenAt}`,
       sessionId: session.sessionId,
       title: statusLabel(session.status),
-      body: `${session.projectName}: ${session.message}`,
+      body: session.projectName,
       intent: statusIntent(session.status),
       // notifyStatuses is exactly urgencyByStatus's keys, so this is total.
       urgency: urgencyByStatus[session.status] as Urgency,

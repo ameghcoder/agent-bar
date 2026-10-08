@@ -30,9 +30,16 @@ The principle is unchanged: a stale session is never shown as a confirmed
 state, failure, or completion. What changed is the words. A bare "Status
 unknown" in the top bar told the user nothing and, because the leader was
 chosen by status priority alone, an old stale request could hide a fresh
-session. The top bar now reads `<project> - <State>` for the leading fresh
-session as `<project> - <State> - <time ago>`, with `+N` for other fresh
-running sessions. Stale sessions only lead when nothing fresh exists, and then
+session. The top bar now reads `<project> - <State> - <time ago>` for the
+leading fresh session, with `+N` for other fresh running sessions. Stale sessions only lead when nothing fresh exists, and then
 the bar reads `<project> - No updates - <time ago>`: what we actually know (how long it has been
 quiet), not a guessed state. The menu row still names the last observed status.
+
+## Amendment (2026-10-07): notification dedupe and content
+
+"Deduped by a stable key" is implemented as: notify when a session's status
+differs between two consecutive views. No separate key is stored, because
+nothing consumed one. Notification text is the status label and the project
+name only. The session's last message is Claude-authored and is never shown
+in a notification.
 

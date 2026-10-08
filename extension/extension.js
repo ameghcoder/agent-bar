@@ -278,7 +278,7 @@ export default class AgentBarExtension extends Extension {
             seen.add(session.sessionId);
             let item = this._rows.get(session.sessionId);
             if (!item) {
-                item = new PopupMenu.PopupImageMenuItem(sessionRowText(session), ICON_BY_INTENT[session.intent], {reactive: false});
+                item = new PopupMenu.PopupImageMenuItem(sessionRowText(session), ICON_BY_INTENT[session.intent] ?? ICON_BY_INTENT.unknown, {reactive: false});
                 ellipsizeRow(item);
                 this._rows.set(session.sessionId, item);
                 this._sessionsSection.addMenuItem(item);
@@ -309,7 +309,7 @@ export default class AgentBarExtension extends Extension {
         }
         this._stSettings = null;
         this._lastView = null;
-        this._rows.clear();
+        this._rows?.clear();
         this._notificationSource?.destroy();
         this._notificationSource = null;
         this._indicator?.destroy();

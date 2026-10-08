@@ -15,11 +15,13 @@ const unreadableHarness = fileURLToPath(new URL('fixtures/gjs-unreadable-state-h
 
 const expiredHarness = fileURLToPath(new URL('fixtures/gjs-expired-sessions-harness.js', import.meta.url));
 
-async function runHarness(t, script = harness) {
+const robustnessHarness = fileURLToPath(new URL('fixtures/gjs-reader-robustness-harness.js', import.meta.url));
+
+async function runHarness(t, script = harness, args = []) {
   const directory = await mkdtemp(join(tmpdir(), 'agentbar-state-reader-'));
   t.after(() => rm(directory, { recursive: true, force: true }));
   const { code, lines } = await new Promise((resolve, reject) => {
-    const child = spawn('gjs', ['-m', script, directory], { stdio: ['ignore', 'pipe', 'pipe'] });
+    const child = spawn('gjs', ['-m', script, directory, ...args], { stdio: ['ignore', 'pipe', 'pipe'] });
     let stdout = '';
     let stderr = '';
     child.stdout.setEncoding('utf8').on('data', (data) => { stdout += data; });
@@ -81,4 +83,36 @@ test('sessions past the 24-hour retention window never reach the view, even a st
   assert.equal(view.attentionCount, 0);
   assert.equal(view.status, 'completed');
   assert.equal(view.stale, false);
+});
+
+const robustness = (t, scenario) => runHarness(t, robustnessHarness, [scenario]);
+
+test('a state file over the size limit is unavailable and is never parsed', { skip: process.platform !== 'linux' }, async (t) => {
+  const { lines } = await robustness(t, 'oversized');
+  assert.deepEqual(lines.map((line) => line.kind), ['unavailable']);
+  assert.match(lines[0].message, /too large/);
+});
+
+test('when two reads overlap, only the newest publishes', { skip: process.platform !== 'linux' }, async (t) => {
+  const { lines } = await robustness(t, 'overlap');
+  assert.deepEqual(lines.map((line) => line.kind), ['view']);
+  assert.deepEqual(lines[0].view.sessions.map((row) => row.sessionId), ['second']);
+});
+
+test('a throw while presenting becomes unavailable instead of escaping into GNOME Shell', { skip: process.platform !== 'linux' }, async (t) => {
+  const { lines } = await robustness(t, 'throwing-view');
+  assert.deepEqual(lines.map((line) => line.kind), ['unavailable']);
+  assert.match(lines[0].message, /render failed/);
+});
+
+// Startup rule: the first valid view is the baseline, even after an unreadable
+// first read, because nothing proves its contents are newer than the reader.
+test('the first valid view after an unavailable start is a baseline and notifies nothing', { skip: process.platform !== 'linux' }, async (t) => {
+  const { lines } = await robustness(t, 'startup-unavailable');
+  // The directory monitor may also re-read the same write, so views can repeat.
+  const kinds = lines.map((line) => line.kind);
+  assert.equal(kinds[0], 'unavailable');
+  assert.ok(kinds.includes('view'));
+  assert.ok(!kinds.includes('notifications'), 'the baseline view must not notify');
+  assert.equal(lines.at(-1).view.status, 'permission_required');
 });

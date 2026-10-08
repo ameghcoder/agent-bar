@@ -65,16 +65,18 @@ as "status unknown/stale", never as a confirmed failure or completion.
 - Preview-first hook install and uninstall: pure merge engine, exact-ownership
   matching, timestamped `0600` backup, atomic replace, idempotent.
 - Read-only `doctor` with pass/warn/fail checks and redacted output.
-- Thirty-one integration tests, including 24 concurrent hook processes and
-  an activation smoke test through an applied settings file.
+- GNOME Shell 50 extension: live top-bar title (`<project> - <State> - <time
+  ago>`, `+N` running), multi-session menu with a health line, stale
+  presentation, 24-hour session retention, finite icon pulses, and deduped
+  notifications that carry only the status label and project name.
+- Automated tests covering hooks (including 24 concurrent hook processes),
+  install, the pure presentation model, and the real `StateWatcher` under gjs.
 
 ## Current gaps
 
-- The GNOME extension shows a static indicator and menu; it does not read
-  state, derive staleness, or notify yet.
 - No explicit permission grant/denial observation.
-- No crash detection, stale presentation, retention, rotation, or history-based
-  snapshot repair.
+- No crash detection (a closed terminal reads as stale, not ended), history
+  rotation, or history-based snapshot repair.
 - No `.deb` package or tested installation/uninstallation flow.
 
 ## Scope boundary for v1 beta
