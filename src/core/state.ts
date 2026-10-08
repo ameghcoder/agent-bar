@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { appendFile, mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import lockfile from 'proper-lockfile';
-import { carryActiveStatus, isRecord, normalizeEvent, type ClaudeEvent, type EventType, type JsonObject } from './events.js';
+import { carryActiveStatus, isRecord, normalizeEvent, projectRootFromEnv, type ClaudeEvent, type EventType, type JsonObject } from './events.js';
 import { getPaths } from './paths.js';
 import { parseSnapshot, schemaVersion, withoutExpiredSessions, type AgentBarState, type SessionState } from './snapshot.js';
 
@@ -38,10 +38,13 @@ export async function captureEvent(type: EventType, raw: JsonObject): Promise<Cl
     const index = state.sessions.findIndex((session) => session.sessionId === normalized.sessionId);
     const previous = state.sessions[index];
     const event = carryActiveStatus(normalized, previous);
+    // Without CLAUDE_PROJECT_DIR the event's path is only `cwd`, which drifts
+    // into subdirectories, so the session keeps the path it was first seen with.
+    const project = previous && projectRootFromEnv() === undefined ? previous : event;
     const session: SessionState = {
       sessionId: event.sessionId,
-      projectName: event.projectName,
-      projectPath: event.projectPath,
+      projectName: project.projectName,
+      projectPath: project.projectPath,
       source: event.source,
       status: event.status,
       lastEventType: event.eventType,

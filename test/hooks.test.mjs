@@ -16,10 +16,13 @@ async function temporaryDirectory(t) {
   return directory;
 }
 
-function run(directory, args, input = '', command = process.execPath) {
+// CLAUDE_PROJECT_DIR is removed unless a test sets it, so running the suite
+// from inside a Claude hook or session cannot change which root is recorded.
+function run(directory, args, input = '', command = process.execPath, env = {}) {
+  const { CLAUDE_PROJECT_DIR: _ignored, ...inherited } = process.env;
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, {
-      env: { ...process.env, AGENTBAR_STATE_DIR: directory, CLAUDE_CONFIG_DIR: directory },
+      env: { ...inherited, AGENTBAR_STATE_DIR: directory, CLAUDE_CONFIG_DIR: directory, ...env },
       stdio: ['pipe', 'pipe', 'pipe'],
     });
     let stdout = '';
@@ -33,8 +36,8 @@ function run(directory, args, input = '', command = process.execPath) {
   });
 }
 
-function hook(directory, type, raw = {}) {
-  return run(directory, [receiver, '--event', type], JSON.stringify(raw));
+function hook(directory, type, raw = {}, env = {}) {
+  return run(directory, [receiver, '--event', type], JSON.stringify(raw), process.execPath, env);
 }
 
 async function readState(directory) {
@@ -274,4 +277,40 @@ test('capture drops sessions with no event for 24 hours, keeps the rest, and kee
   const history = await readHistory(directory);
   assert.equal(history.length, 2, 'pruning the snapshot never rewrites history');
   assert.equal(history[0].id, 'earlier');
+});
+
+// T311: Claude's `cwd` follows the shell into subdirectories mid-session, so it
+// cannot name the project. CLAUDE_PROJECT_DIR, which Claude Code sets for hook
+// commands, is the project root; without it the session's first directory holds.
+test('the project root comes from CLAUDE_PROJECT_DIR, not the current directory', async (t) => {
+  const directory = await temporaryDirectory(t);
+  const env = { CLAUDE_PROJECT_DIR: '/home/me/agent-bar' };
+  await hook(directory, 'session_start', { session_id: 'rooted', cwd: '/home/me/agent-bar' }, env);
+  await hook(directory, 'pre_tool_use', { session_id: 'rooted', cwd: '/home/me/agent-bar/src/lib', tool_name: 'Bash' }, env);
+  const [session] = (await readState(directory)).sessions;
+  assert.deepEqual([session.projectName, session.projectPath], ['agent-bar', '/home/me/agent-bar']);
+});
+
+test('without CLAUDE_PROJECT_DIR a session keeps the directory it was first seen in', async (t) => {
+  const directory = await temporaryDirectory(t);
+  await hook(directory, 'session_start', { session_id: 'drifting', cwd: '/home/me/agent-bar' });
+  await hook(directory, 'pre_tool_use', { session_id: 'drifting', cwd: '/home/me/agent-bar/src', tool_name: 'Bash' });
+  const [session] = (await readState(directory)).sessions;
+  assert.deepEqual([session.projectName, session.projectPath], ['agent-bar', '/home/me/agent-bar']);
+});
+
+test('CLAUDE_PROJECT_DIR corrects a session first seen from a subdirectory', async (t) => {
+  const directory = await temporaryDirectory(t);
+  await hook(directory, 'pre_tool_use', { session_id: 'late', cwd: '/home/me/agent-bar/src', tool_name: 'Bash' });
+  await hook(directory, 'pre_tool_use', { session_id: 'late', cwd: '/home/me/agent-bar/src', tool_name: 'Bash' }, { CLAUDE_PROJECT_DIR: '/home/me/agent-bar' });
+  const [session] = (await readState(directory)).sessions;
+  assert.equal(session.projectName, 'agent-bar');
+});
+
+test('an empty or relative CLAUDE_PROJECT_DIR is ignored', async (t) => {
+  for (const value of ['', 'relative/agent-bar']) {
+    const directory = await temporaryDirectory(t);
+    await hook(directory, 'session_start', { session_id: 'odd', cwd: '/home/me/real' }, { CLAUDE_PROJECT_DIR: value });
+    assert.equal((await readState(directory)).sessions[0].projectPath, '/home/me/real', JSON.stringify(value));
+  }
 });

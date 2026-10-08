@@ -46,6 +46,18 @@ When sessions disagree, the top bar shows one status. Most urgent first:
 `intent` is the visual vocabulary the extension styles against. It is
 deliberately not a colour: the renderer decides that.
 
+### Project name
+
+A session's `projectPath` is the project root, and `projectName` is its last
+path segment. The root comes from `CLAUDE_PROJECT_DIR`, which Claude Code sets
+for hook commands (verified 2026-10-08 with a real hook event whose payload
+`cwd` was `…/agent-bar/src` while the recorded root was `…/agent-bar`). The
+payload's `cwd` follows the shell into subdirectories mid-session (the event
+history showed one session under eight different directory names), so it is
+only the fallback. Without `CLAUDE_PROJECT_DIR`, a session keeps the path it
+was first seen with. An empty or relative value is ignored. Nothing beyond the
+hook's own environment and payload is read.
+
 ### The top-bar title
 
 `IndicatorView.title` is the complete top-bar text, built here so every renderer
