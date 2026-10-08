@@ -15,7 +15,7 @@ const run = promisify(execFile);
 const { version } = JSON.parse(await readFile(new URL('package.json', root), 'utf8'));
 
 test('the extension metadata names the package version', async () => {
-  const metadata = JSON.parse(await readFile(new URL('extension/metadata.json', root), 'utf8'));
+  const metadata = JSON.parse(await readFile(new URL('os/linux/gnome-shell/metadata.json', root), 'utf8'));
   assert.equal(metadata['version-name'], version);
 });
 

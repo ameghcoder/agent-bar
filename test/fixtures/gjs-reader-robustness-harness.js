@@ -7,8 +7,8 @@
 //   startup-unavailable  the first read is malformed, then a valid snapshot arrives
 import GLib from 'gi://GLib';
 
-import { StateWatcher } from '../../extension/lib/state-reader.js';
-import { maxSnapshotBytes } from '../../extension/lib/snapshot.js';
+import { StateWatcher } from '../../os/linux/gnome-shell/lib/state-reader.js';
+import { maxSnapshotBytes } from '../../os/linux/gnome-shell/lib/snapshot.js';
 
 const [directory, scenario] = ARGV;
 const statePath = GLib.build_filenamev([directory, 'state.json']);

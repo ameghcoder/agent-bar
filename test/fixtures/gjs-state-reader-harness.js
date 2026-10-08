@@ -5,7 +5,7 @@
 // Usage: gjs -m gjs-state-reader-harness.js <directory>
 import GLib from 'gi://GLib';
 
-import { StateWatcher } from '../../extension/lib/state-reader.js';
+import { StateWatcher } from '../../os/linux/gnome-shell/lib/state-reader.js';
 
 const directory = ARGV[0];
 const statePath = GLib.build_filenamev([directory, 'state.json']);

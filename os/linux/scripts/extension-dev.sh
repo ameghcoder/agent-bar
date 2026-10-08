@@ -2,8 +2,8 @@
 # Development helper for the AgentBar GNOME Shell extension (GNOME 50, Wayland).
 set -eu
 
-here=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-src="$here/extension"
+here=$(CDPATH= cd -- "$(dirname -- "$0")/../../.." && pwd)
+src="$here/os/linux/gnome-shell"
 uuid=$(node -p "require('$src/metadata.json').uuid")
 target="${XDG_DATA_HOME:-$HOME/.local/share}/gnome-shell/extensions/$uuid"
 
@@ -25,7 +25,7 @@ case "${1:-help}" in
     dbus-run-session -- sh -c "SHELL_DEBUG=backtrace-warnings gnome-shell --devkit --wayland" ;;
   pack)      # validate metadata and produce a zip in the scratch dir given as \$2
     out="${2:-/tmp}"
-    # extension/lib holds generated files (see scripts/copy-extension-lib.mjs);
+    # lib/ holds generated files (see os/linux/scripts/copy-extension-lib.mjs);
     # gnome-extensions pack does not include subdirectories unless told to.
     gnome-extensions pack --force --out-dir "$out" --extra-source="$src/lib" "$src" && echo "packed to $out" ;;
   *)

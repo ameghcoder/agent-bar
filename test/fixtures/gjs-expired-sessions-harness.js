@@ -4,7 +4,7 @@
 // Usage: gjs -m gjs-expired-sessions-harness.js <directory>
 import GLib from 'gi://GLib';
 
-import { StateWatcher } from '../../extension/lib/state-reader.js';
+import { StateWatcher } from '../../os/linux/gnome-shell/lib/state-reader.js';
 
 const directory = ARGV[0];
 const now = Date.parse('2026-10-06T12:00:00.000Z');

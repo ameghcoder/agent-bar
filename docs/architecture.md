@@ -13,7 +13,7 @@ Claude hook -> src/hooks -> src/core/events -> src/core/state -> state.json
                                                   |
                                        src/core/presentation (pure)
                                                   |
-                                          extension/ (GJS)
+                                os/linux/gnome-shell (GJS)
 ```
 
 Data flows one way. Nothing downstream of `state.json` can affect capture, and
@@ -173,17 +173,17 @@ compiles to zero imports at all. Both properties are asserted by tests, not
 left as convention, because the extension depends on them.
 
 `pnpm build` copies `vocabulary.js`, `snapshot.js`, and `presentation.js` from
-`dist/core/` into `extension/lib/` (`scripts/copy-extension-lib.mjs`). The
+`dist/core/` into `os/linux/gnome-shell/lib/` (`os/linux/scripts/copy-extension-lib.mjs`). The
 extension imports these exact compiled files - the same reader and
 presentation logic Node's tests exercise - with no `dist/` or `node_modules`
-dependency at runtime. `extension/lib/state-reader.js` is hand-authored, not
+dependency at runtime. `os/linux/gnome-shell/lib/state-reader.js` is hand-authored, not
 generated: a `StateWatcher` built only on `gi://GLib` and `gi://Gio`, so it has
 no dependency on Shell UI classes (`St`, `Clutter`, `PanelMenu`, `Main`) and
 runs headlessly under the plain `gjs` interpreter. `test/state-reader.test.mjs`
 uses exactly that to drive it for real against a real temporary directory and
 real atomic renames, rather than mocking the filesystem or GNOME APIs.
 
-`extension/extension.js` is the one Shell-dependent file: it owns the
+`os/linux/gnome-shell/extension.js` is the one Shell-dependent file: it owns the
 `PanelMenu.Button`, renders `IndicatorView` fields (`intent` chooses the icon;
 `title` is the top-bar text; `health` is the menu's health line) and builds menu rows from `sessions`, and
 forwards `StateWatcher`'s callbacks. It never computes a status, priority,
@@ -251,7 +251,7 @@ raise a notification for a state that has already passed.
 `gnome-extensions pack` only bundles `metadata.json`, `extension.js`, and
 `stylesheet.css` by default; it does not walk subdirectories. Packing without
 `--extra-source="$src/lib"` silently ships an extension whose entry point
-imports a directory that was never included. `scripts/extension-dev.sh pack`
+imports a directory that was never included. `os/linux/scripts/extension-dev.sh pack`
 passes it; `test/extension.test.mjs` packs for real and inspects the resulting
 zip's entries so this cannot silently regress before M5 builds the `.deb` on
 top of the same command.

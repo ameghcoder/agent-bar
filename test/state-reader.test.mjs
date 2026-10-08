@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 
-// extension/lib/state-reader.js is Shell-independent (only GLib/Gio), so it
+// os/linux/gnome-shell/lib/state-reader.js is Shell-independent (only GLib/Gio), so it
 // runs under the real gjs runtime headlessly. This drives it for real against
 // a real temporary directory and real atomic renames - see the harness for
 // the exact scripted sequence.

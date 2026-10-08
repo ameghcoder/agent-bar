@@ -13,7 +13,7 @@
     "agentbar-hook": "dist/hooks/claude-hook.js"
   },
   "scripts": {
-    "build": "tsc && node scripts/copy-extension-lib.mjs",
+    "build": "tsc && node os/linux/scripts/copy-extension-lib.mjs",
     "typecheck": "tsc --noEmit",
     "agentbar": "node dist/cli/index.js",
     "agentbar-hook": "node dist/hooks/claude-hook.js",
