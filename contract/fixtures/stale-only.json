@@ -1,0 +1,47 @@
+{
+  "description": "Only a stale session remains: the title says No updates instead of guessing a state.",
+  "now": "2026-10-08T12:00:00.000Z",
+  "snapshot": {
+    "schemaVersion": 1,
+    "updatedAt": "2026-10-08T12:00:00.000Z",
+    "sessions": [
+      {
+        "sessionId": "quiet",
+        "projectName": "quiet",
+        "projectPath": "/home/me/quiet",
+        "source": "claude-code",
+        "status": "running",
+        "lastEventType": "stop",
+        "lastMessage": "m",
+        "startedAt": "2026-10-08T10:45:00.000Z",
+        "lastSeenAt": "2026-10-08T11:15:00.000Z"
+      }
+    ]
+  },
+  "view": {
+    "status": "running",
+    "label": "Status unknown",
+    "intent": "unknown",
+    "stale": true,
+    "attentionCount": 0,
+    "sessions": [
+      {
+        "sessionId": "quiet",
+        "projectName": "quiet",
+        "status": "running",
+        "label": "Working",
+        "intent": "unknown",
+        "message": "m",
+        "hint": "",
+        "relative": "45m ago",
+        "attention": false,
+        "stale": true,
+        "staleForMs": 2100000,
+        "lastSeenAt": "2026-10-08T11:15:00.000Z"
+      }
+    ],
+    "title": "quiet - No updates - 45m ago",
+    "leaderId": "quiet",
+    "health": "No recent events · last 45m ago"
+  }
+}

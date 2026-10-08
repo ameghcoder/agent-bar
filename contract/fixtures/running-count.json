@@ -1,0 +1,122 @@
+{
+  "description": "+N counts only other fresh running sessions, never waiting ones.",
+  "now": "2026-10-08T12:00:00.000Z",
+  "snapshot": {
+    "schemaVersion": 1,
+    "updatedAt": "2026-10-08T12:00:00.000Z",
+    "sessions": [
+      {
+        "sessionId": "asks",
+        "projectName": "asks",
+        "projectPath": "/home/me/asks",
+        "source": "claude-code",
+        "status": "permission_required",
+        "lastEventType": "stop",
+        "lastMessage": "m",
+        "startedAt": "2026-10-08T11:29:00.000Z",
+        "lastSeenAt": "2026-10-08T11:59:00.000Z"
+      },
+      {
+        "sessionId": "one",
+        "projectName": "one",
+        "projectPath": "/home/me/one",
+        "source": "claude-code",
+        "status": "running",
+        "lastEventType": "stop",
+        "lastMessage": "m",
+        "startedAt": "2026-10-08T11:28:00.000Z",
+        "lastSeenAt": "2026-10-08T11:58:00.000Z"
+      },
+      {
+        "sessionId": "two",
+        "projectName": "two",
+        "projectPath": "/home/me/two",
+        "source": "claude-code",
+        "status": "running",
+        "lastEventType": "stop",
+        "lastMessage": "m",
+        "startedAt": "2026-10-08T11:27:00.000Z",
+        "lastSeenAt": "2026-10-08T11:57:00.000Z"
+      },
+      {
+        "sessionId": "waits",
+        "projectName": "waits",
+        "projectPath": "/home/me/waits",
+        "source": "claude-code",
+        "status": "waiting",
+        "lastEventType": "stop",
+        "lastMessage": "m",
+        "startedAt": "2026-10-08T11:26:00.000Z",
+        "lastSeenAt": "2026-10-08T11:56:00.000Z"
+      }
+    ]
+  },
+  "view": {
+    "status": "permission_required",
+    "label": "Permission needed",
+    "intent": "attention",
+    "stale": false,
+    "attentionCount": 2,
+    "sessions": [
+      {
+        "sessionId": "asks",
+        "projectName": "asks",
+        "status": "permission_required",
+        "label": "Permission needed",
+        "intent": "attention",
+        "message": "m",
+        "hint": "",
+        "relative": "1m ago",
+        "attention": true,
+        "stale": false,
+        "staleForMs": 0,
+        "lastSeenAt": "2026-10-08T11:59:00.000Z"
+      },
+      {
+        "sessionId": "waits",
+        "projectName": "waits",
+        "status": "waiting",
+        "label": "Waiting for you",
+        "intent": "attention",
+        "message": "m",
+        "hint": "",
+        "relative": "4m ago",
+        "attention": true,
+        "stale": false,
+        "staleForMs": 0,
+        "lastSeenAt": "2026-10-08T11:56:00.000Z"
+      },
+      {
+        "sessionId": "one",
+        "projectName": "one",
+        "status": "running",
+        "label": "Working",
+        "intent": "active",
+        "message": "m",
+        "hint": "",
+        "relative": "2m ago",
+        "attention": false,
+        "stale": false,
+        "staleForMs": 0,
+        "lastSeenAt": "2026-10-08T11:58:00.000Z"
+      },
+      {
+        "sessionId": "two",
+        "projectName": "two",
+        "status": "running",
+        "label": "Working",
+        "intent": "active",
+        "message": "m",
+        "hint": "",
+        "relative": "3m ago",
+        "attention": false,
+        "stale": false,
+        "staleForMs": 0,
+        "lastSeenAt": "2026-10-08T11:57:00.000Z"
+      }
+    ],
+    "title": "asks - Permission needed - 1m ago +2",
+    "leaderId": "asks",
+    "health": "Receiving events · last 1m ago"
+  }
+}

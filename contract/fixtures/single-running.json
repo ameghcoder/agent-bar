@@ -1,0 +1,47 @@
+{
+  "description": "One working session leads with its time ago.",
+  "now": "2026-10-08T12:00:00.000Z",
+  "snapshot": {
+    "schemaVersion": 1,
+    "updatedAt": "2026-10-08T12:00:00.000Z",
+    "sessions": [
+      {
+        "sessionId": "agent-bar",
+        "projectName": "agent-bar",
+        "projectPath": "/home/me/agent-bar",
+        "source": "claude-code",
+        "status": "running",
+        "lastEventType": "stop",
+        "lastMessage": "m",
+        "startedAt": "2026-10-08T11:28:00.000Z",
+        "lastSeenAt": "2026-10-08T11:58:00.000Z"
+      }
+    ]
+  },
+  "view": {
+    "status": "running",
+    "label": "Working",
+    "intent": "active",
+    "stale": false,
+    "attentionCount": 0,
+    "sessions": [
+      {
+        "sessionId": "agent-bar",
+        "projectName": "agent-bar",
+        "status": "running",
+        "label": "Working",
+        "intent": "active",
+        "message": "m",
+        "hint": "",
+        "relative": "2m ago",
+        "attention": false,
+        "stale": false,
+        "staleForMs": 0,
+        "lastSeenAt": "2026-10-08T11:58:00.000Z"
+      }
+    ],
+    "title": "agent-bar - Working - 2m ago",
+    "leaderId": "agent-bar",
+    "health": "Receiving events · last 2m ago"
+  }
+}

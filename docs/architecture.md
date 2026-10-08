@@ -19,6 +19,13 @@ Claude hook -> src/hooks -> src/core/events -> src/core/state -> state.json
 Data flows one way. Nothing downstream of `state.json` can affect capture, and
 capture never waits on the extension.
 
+## The contract
+
+`contract/` is the language-neutral copy of the state schema, the normalized
+event, and the presentation rules, with conformance fixtures (ADR 0007, see
+`contract/README.md`). `test/contract.test.mjs` holds it equal to the
+TypeScript below, so a change to one without the other fails the suite.
+
 ## The presentation model
 
 `src/core/presentation.ts` converts a parsed snapshot plus the current time into

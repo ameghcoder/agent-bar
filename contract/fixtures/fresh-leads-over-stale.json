@@ -1,0 +1,72 @@
+{
+  "description": "A fresh idle session leads over a permission request with no event for 3 hours; the stale row keeps its observed status but drops to the unknown intent.",
+  "now": "2026-10-08T12:00:00.000Z",
+  "snapshot": {
+    "schemaVersion": 1,
+    "updatedAt": "2026-10-08T12:00:00.000Z",
+    "sessions": [
+      {
+        "sessionId": "fresh",
+        "projectName": "fresh",
+        "projectPath": "/home/me/fresh",
+        "source": "claude-code",
+        "status": "idle",
+        "lastEventType": "stop",
+        "lastMessage": "m",
+        "startedAt": "2026-10-08T11:29:00.000Z",
+        "lastSeenAt": "2026-10-08T11:59:00.000Z"
+      },
+      {
+        "sessionId": "old",
+        "projectName": "old",
+        "projectPath": "/home/me/old",
+        "source": "claude-code",
+        "status": "permission_required",
+        "lastEventType": "stop",
+        "lastMessage": "m",
+        "startedAt": "2026-10-08T08:30:00.000Z",
+        "lastSeenAt": "2026-10-08T09:00:00.000Z"
+      }
+    ]
+  },
+  "view": {
+    "status": "idle",
+    "label": "Idle",
+    "intent": "quiet",
+    "stale": false,
+    "attentionCount": 1,
+    "sessions": [
+      {
+        "sessionId": "old",
+        "projectName": "old",
+        "status": "permission_required",
+        "label": "Permission needed",
+        "intent": "unknown",
+        "message": "m",
+        "hint": "",
+        "relative": "3h ago",
+        "attention": true,
+        "stale": true,
+        "staleForMs": 10200000,
+        "lastSeenAt": "2026-10-08T09:00:00.000Z"
+      },
+      {
+        "sessionId": "fresh",
+        "projectName": "fresh",
+        "status": "idle",
+        "label": "Idle",
+        "intent": "quiet",
+        "message": "m",
+        "hint": "",
+        "relative": "1m ago",
+        "attention": false,
+        "stale": false,
+        "staleForMs": 0,
+        "lastSeenAt": "2026-10-08T11:59:00.000Z"
+      }
+    ],
+    "title": "fresh - Idle - 1m ago",
+    "leaderId": "fresh",
+    "health": "Receiving events · last 1m ago"
+  }
+}

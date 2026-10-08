@@ -1,0 +1,51 @@
+{
+  "$comment": "Presentation rules every renderer shares. Ordering, staleness, the leader choice, and notification transitions are logic, not data: each port reimplements them and must reproduce contract/fixtures exactly.",
+  "statuses": {
+    "idle": {
+      "label": "Idle",
+      "intent": "quiet",
+      "priority": 1,
+      "notify": null
+    },
+    "running": {
+      "label": "Working",
+      "intent": "active",
+      "priority": 4,
+      "notify": null
+    },
+    "waiting": {
+      "label": "Waiting for you",
+      "intent": "attention",
+      "priority": 5,
+      "notify": "normal"
+    },
+    "permission_required": {
+      "label": "Permission needed",
+      "intent": "attention",
+      "priority": 7,
+      "notify": "critical"
+    },
+    "completed": {
+      "label": "Turn complete",
+      "intent": "complete",
+      "priority": 3,
+      "notify": "low"
+    },
+    "failed": {
+      "label": "Failed",
+      "intent": "error",
+      "priority": 6,
+      "notify": "high"
+    },
+    "unknown": {
+      "label": "Status unknown",
+      "intent": "unknown",
+      "priority": 2,
+      "notify": null
+    }
+  },
+  "staleAfterMs": 600000,
+  "sessionRetentionMs": 86400000,
+  "maxSnapshotBytes": 1048576,
+  "titleNameLimit": 18
+}

@@ -1,0 +1,72 @@
+{
+  "description": "Two sessions share a project name, so each menu row gets its parent directory as a hint; the title never does.",
+  "now": "2026-10-08T12:00:00.000Z",
+  "snapshot": {
+    "schemaVersion": 1,
+    "updatedAt": "2026-10-08T12:00:00.000Z",
+    "sessions": [
+      {
+        "sessionId": "a",
+        "projectName": "api",
+        "projectPath": "/home/me/work/api",
+        "source": "claude-code",
+        "status": "running",
+        "lastEventType": "stop",
+        "lastMessage": "m",
+        "startedAt": "2026-10-08T11:29:00.000Z",
+        "lastSeenAt": "2026-10-08T11:59:00.000Z"
+      },
+      {
+        "sessionId": "b",
+        "projectName": "api",
+        "projectPath": "/home/me/play/api",
+        "source": "claude-code",
+        "status": "completed",
+        "lastEventType": "stop",
+        "lastMessage": "m",
+        "startedAt": "2026-10-08T11:25:00.000Z",
+        "lastSeenAt": "2026-10-08T11:55:00.000Z"
+      }
+    ]
+  },
+  "view": {
+    "status": "running",
+    "label": "Working",
+    "intent": "active",
+    "stale": false,
+    "attentionCount": 0,
+    "sessions": [
+      {
+        "sessionId": "a",
+        "projectName": "api",
+        "status": "running",
+        "label": "Working",
+        "intent": "active",
+        "message": "m",
+        "hint": "work",
+        "relative": "1m ago",
+        "attention": false,
+        "stale": false,
+        "staleForMs": 0,
+        "lastSeenAt": "2026-10-08T11:59:00.000Z"
+      },
+      {
+        "sessionId": "b",
+        "projectName": "api",
+        "status": "completed",
+        "label": "Turn complete",
+        "intent": "complete",
+        "message": "m",
+        "hint": "play",
+        "relative": "5m ago",
+        "attention": false,
+        "stale": false,
+        "staleForMs": 0,
+        "lastSeenAt": "2026-10-08T11:55:00.000Z"
+      }
+    ],
+    "title": "api - Working - 1m ago",
+    "leaderId": "a",
+    "health": "Receiving events · last 1m ago"
+  }
+}

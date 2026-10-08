@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ameghcoder/agent-bar/contract/state.schema.json",
+  "title": "AgentBar state snapshot",
+  "description": "~/.local/state/agentbar/state.json, written atomically by capture and read by every renderer. Readers treat a file larger than presentation.json's maxSnapshotBytes, malformed JSON, a shape mismatch, or another schemaVersion as 'state unavailable', never as a session state. A file with no schemaVersion is the pre-versioned beta shape and reads as version 1.",
+  "type": "object",
+  "required": ["updatedAt", "sessions"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "updatedAt": { "type": "string", "format": "date-time" },
+    "sessions": { "type": "array", "items": { "$ref": "#/$defs/session" } }
+  },
+  "$defs": {
+    "status": {
+      "enum": ["idle", "running", "waiting", "permission_required", "completed", "failed", "unknown"]
+    },
+    "eventType": {
+      "enum": ["session_start", "pre_tool_use", "post_tool_use", "notification", "permission_request", "stop", "session_end", "error"]
+    },
+    "session": {
+      "type": "object",
+      "required": ["sessionId", "projectName", "projectPath", "source", "status", "lastEventType", "lastMessage", "startedAt", "lastSeenAt"],
+      "properties": {
+        "sessionId": { "type": "string" },
+        "projectName": { "type": "string", "description": "Last path segment of projectPath." },
+        "projectPath": { "type": "string", "description": "Project root. Never rendered in the top bar or a notification." },
+        "source": { "const": "claude-code" },
+        "status": { "$ref": "#/$defs/status" },
+        "lastEventType": { "$ref": "#/$defs/eventType" },
+        "lastMessage": { "type": "string", "description": "One line, at most 120 characters. May be Claude-authored; never shown in a notification." },
+        "startedAt": { "type": "string", "format": "date-time" },
+        "lastSeenAt": { "type": "string", "format": "date-time" }
+      }
+    }
+  }
+}

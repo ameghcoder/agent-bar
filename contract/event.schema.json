@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ameghcoder/agent-bar/contract/event.schema.json",
+  "title": "AgentBar normalized event",
+  "description": "One line of ~/.local/state/agentbar/events.jsonl: what an agent adapter produces from one native payload. Everything after this point is agent-neutral (ADR 0002, ADR 0007).",
+  "type": "object",
+  "required": ["id", "timestamp", "source", "projectPath", "projectName", "sessionId", "eventType", "status", "message", "raw"],
+  "properties": {
+    "id": { "type": "string", "description": "Random UUID." },
+    "timestamp": { "type": "string", "format": "date-time", "description": "Set in commit order, after the write lock is held." },
+    "source": { "const": "claude-code" },
+    "projectPath": { "type": "string" },
+    "projectName": { "type": "string" },
+    "sessionId": { "type": "string" },
+    "eventType": { "$ref": "state.schema.json#/$defs/eventType" },
+    "status": { "$ref": "state.schema.json#/$defs/status" },
+    "message": { "type": "string" },
+    "raw": { "type": "object", "description": "The native payload, kept for diagnosis only. Never rendered." }
+  }
+}

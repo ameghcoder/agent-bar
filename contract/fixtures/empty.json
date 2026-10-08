@@ -1,0 +1,20 @@
+{
+  "description": "No sessions: a quiet indicator and the install hint.",
+  "now": "2026-10-08T12:00:00.000Z",
+  "snapshot": {
+    "schemaVersion": 1,
+    "updatedAt": "2026-10-08T12:00:00.000Z",
+    "sessions": []
+  },
+  "view": {
+    "status": "idle",
+    "label": "Idle",
+    "intent": "quiet",
+    "stale": false,
+    "attentionCount": 0,
+    "sessions": [],
+    "title": "AgentBar - No sessions",
+    "leaderId": null,
+    "health": "No events yet · run \"agentbar install-hooks\""
+  }
+}

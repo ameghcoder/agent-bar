@@ -1,0 +1,47 @@
+{
+  "description": "Project names are cut to titleNameLimit in the title; the menu row keeps the full name.",
+  "now": "2026-10-08T12:00:00.000Z",
+  "snapshot": {
+    "schemaVersion": 1,
+    "updatedAt": "2026-10-08T12:00:00.000Z",
+    "sessions": [
+      {
+        "sessionId": "a-very-long-project-name-indeed",
+        "projectName": "a-very-long-project-name-indeed",
+        "projectPath": "/home/me/a-very-long-project-name-indeed",
+        "source": "claude-code",
+        "status": "completed",
+        "lastEventType": "stop",
+        "lastMessage": "m",
+        "startedAt": "2026-10-08T11:30:00.000Z",
+        "lastSeenAt": "2026-10-08T12:00:00.000Z"
+      }
+    ]
+  },
+  "view": {
+    "status": "completed",
+    "label": "Turn complete",
+    "intent": "complete",
+    "stale": false,
+    "attentionCount": 0,
+    "sessions": [
+      {
+        "sessionId": "a-very-long-project-name-indeed",
+        "projectName": "a-very-long-project-name-indeed",
+        "status": "completed",
+        "label": "Turn complete",
+        "intent": "complete",
+        "message": "m",
+        "hint": "",
+        "relative": "just now",
+        "attention": false,
+        "stale": false,
+        "staleForMs": 0,
+        "lastSeenAt": "2026-10-08T12:00:00.000Z"
+      }
+    ],
+    "title": "a-very-long-proje… - Turn complete - just now",
+    "leaderId": "a-very-long-project-name-indeed",
+    "health": "Receiving events · just now"
+  }
+}
