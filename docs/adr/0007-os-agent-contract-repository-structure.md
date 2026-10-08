@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: accepted
 ---
 
 # Organise the repository by contract, agent, and OS
@@ -16,14 +16,18 @@ contract/            language-neutral source of truth (JSON)
   state.schema.json  snapshot, schemaVersion 1
   event.schema.json  normalized event
   presentation.json  labels, intents, priority, urgency, stale threshold
-  fixtures/          snapshots, native-payload -> event, snapshot -> view
+  fixtures/          agent-neutral cases: snapshot -> view
 src/core/            agent- and OS-neutral: state, snapshot, presentation, paths
-src/cli/             agentbar commands
+src/doctor/          shared doctor runner and AgentBar's own checks
+src/cli/             agentbar commands; the one place that composes agents and OS
 agents/
-  claude-code/       receiver, payload translation, hook install, doctor checks
+  claude-code/       receiver, payload translation, hook install, doctor checks,
+                     native-payload fixtures
 os/
   linux/
     gnome-shell/     the extension (was extension/)
+    scripts/         extension build and development helpers
+    doctor.ts        GNOME Shell and display-session checks
     packaging/deb/   added by the .deb milestone
     SUPPORT.md       distro + version + GNOME version + tested status
 ```
@@ -52,6 +56,12 @@ advertise support we cannot claim (CONTEXT.md: only tested environments).
 - **No new dependency.** The checked-in schemas are verified by a parity test
   against `vocabulary.ts` and the fixtures, not by adding a schema validator.
 
+- **Core receives an adapter, it never imports one.** Capture in `src/core`
+  takes the adapter's normalize and reconcile functions as arguments, so the
+  lock, timestamping, retention, and atomic write stay agent-neutral while the
+  Claude-specific rules (payload mapping, compaction carry-over, project root)
+  live in `agents/claude-code`.
+
 ## Explicitly not decided here
 
 - **Multi-agent contract changes.** `source` is still the literal
@@ -76,6 +86,12 @@ advertise support we cannot claim (CONTEXT.md: only tested environments).
   ownership pattern accepts both the legacy and the new path, with a test, so
   `uninstall-hooks` never leaves a dead AgentBar hook behind and never matches
   a user's own hook.
+- The receiver keeps its file name, so it moves to
+  `dist/agents/claude-code/hooks/claude-hook.js` and the existing ownership
+  pattern (any path ending in `/hooks/claude-hook.js`) already matches both the
+  legacy and the new location. A test pins both.
+- `tsc` compiles from the repository root, so `dist/` mirrors the source tree
+  (`dist/src/core`, `dist/agents/claude-code`, `dist/os/linux`).
 - The public command names (`agentbar`, `agentbar-hook`) do not change.
 - The `.deb` milestone builds against the final paths instead of moving them
   later.
@@ -83,3 +99,10 @@ advertise support we cannot claim (CONTEXT.md: only tested environments).
   extension's Shell-only role is unchanged.
 - This ADR does not widen the supported environment: Ubuntu 26.04, GNOME
   Shell 50, Wayland, Claude Code only.
+
+## Acceptance (2026-10-08)
+
+Accepted by the project owner. The layout above includes four clarifications
+found while planning the move: `src/doctor` and `os/linux/scripts` are named,
+native-payload fixtures belong to the agent adapter rather than `contract/`,
+core receives the adapter as arguments, and the receiver keeps its file name.
