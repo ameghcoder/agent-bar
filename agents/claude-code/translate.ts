@@ -1,6 +1,8 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { basename, isAbsolute, resolve } from 'node:path';
 import { activeStatuses, presentable, type ClaudeEvent, type EventType, type JsonObject, type Status } from '../../src/core/events.js';
+import { processIdentity } from '../../src/core/process.js';
+import type { AgentProcess } from '../../src/core/snapshot.js';
 import type { CaptureAdapter } from '../../src/core/state.js';
 
 // Claude Code adapter, translate step (ADR 0007): one native hook payload in,
@@ -55,10 +57,18 @@ export function projectRootFromEnv(env: NodeJS.ProcessEnv = process.env): string
   return value && isAbsolute(value) ? resolve(value) : undefined;
 }
 
-export function normalizeEvent(eventType: EventType, raw: JsonObject): ClaudeEvent {
-  const projectPath = projectRootFromEnv() ?? resolve(stringField(raw, 'cwd') ?? process.cwd());
+// Claude Code passes its own PID to hook commands as CLAUDE_PID (verified on
+// 2.1.294: the hook's parent process). ADR 0008.
+export function agentProcessFromEnv(env: NodeJS.ProcessEnv = process.env): AgentProcess | undefined {
+  const value = env.CLAUDE_PID ?? '';
+  return /^[1-9]\d*$/.test(value) ? processIdentity(Number(value)) : undefined;
+}
+
+export function normalizeEvent(eventType: EventType, raw: JsonObject, env: NodeJS.ProcessEnv = process.env): ClaudeEvent {
+  const projectPath = projectRootFromEnv(env) ?? resolve(stringField(raw, 'cwd') ?? process.cwd());
   const fallbackId = `unknown:${createHash('sha256').update(projectPath).digest('hex').slice(0, 16)}`;
   const result = activity(eventType, raw);
+  const agentProcess = agentProcessFromEnv(env);
   return {
     id: randomUUID(),
     timestamp: new Date().toISOString(),
@@ -69,6 +79,7 @@ export function normalizeEvent(eventType: EventType, raw: JsonObject): ClaudeEve
     eventType,
     status: result.status,
     message: (messageEvents.includes(eventType) ? presentable(stringField(raw, 'message')) : undefined) ?? result.message,
+    ...(agentProcess ? { agentProcess } : {}),
     raw,
   };
 }

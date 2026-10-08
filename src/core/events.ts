@@ -1,3 +1,4 @@
+import type { AgentProcess } from './snapshot.js';
 import { isRecord, type EventType, type JsonObject, type Status } from './vocabulary.js';
 
 export { eventTypes, isEventType, isRecord, statuses, type EventType, type JsonObject, type JsonValue, type Status } from './vocabulary.js';
@@ -15,6 +16,7 @@ export interface ClaudeEvent {
   eventType: EventType;
   status: Status;
   message: string;
+  agentProcess?: AgentProcess;
   raw: JsonObject;
 }
 

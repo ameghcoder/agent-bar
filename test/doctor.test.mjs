@@ -18,6 +18,8 @@ function run(home, args, { input = '', command = process.execPath, extraEnv = {}
   const env = { ...process.env, HOME: home, ...extraEnv };
   delete env.AGENTBAR_STATE_DIR;
   delete env.CLAUDE_CONFIG_DIR;
+  delete env.CLAUDE_PID;
+  delete env.CLAUDE_PROJECT_DIR;
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, { env, stdio: ['pipe', 'pipe', 'pipe'] });
     let stdout = '';

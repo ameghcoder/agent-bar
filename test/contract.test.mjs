@@ -3,7 +3,7 @@ import { readdir, readFile } from 'node:fs/promises';
 import test from 'node:test';
 import { normalizeEvent } from '../dist/agents/claude-code/translate.js';
 import {
-  defaultStaleAfterMs, notificationsFor, presentSnapshot, statusIntent, statusLabel, statusPriority, titleNameLimit,
+  defaultStaleAfterMs, endedLabel, livenessIntervalMs, notificationsFor, presentSnapshot, statusIntent, statusLabel, statusPriority, titleNameLimit,
 } from '../dist/src/core/presentation.js';
 import { maxSnapshotBytes, parseSnapshot, schemaVersion, sessionRetentionMs } from '../dist/src/core/snapshot.js';
 import { eventTypes, statuses } from '../dist/src/core/vocabulary.js';
@@ -26,8 +26,11 @@ test('the state schema names exactly the vocabulary and session fields the reade
     lastEventType: 'stop', lastMessage: 'm', startedAt: '2026-10-08T12:00:00.000Z', lastSeenAt: '2026-10-08T12:00:00.000Z',
   };
   assert.deepEqual([...state.$defs.session.required].sort(), Object.keys(session).sort());
-  assert.deepEqual(Object.keys(state.$defs.session.properties).sort(), Object.keys(session).sort());
+  // agentProcess is the one optional session field (ADR 0008).
+  assert.deepEqual(Object.keys(state.$defs.session.properties).sort(), [...Object.keys(session), 'agentProcess'].sort());
   const snapshot = (sessions) => JSON.stringify({ schemaVersion, updatedAt: session.startedAt, sessions });
+  const withProcess = parseSnapshot(snapshot([{ ...session, agentProcess: { pid: 7, start: '9' } }]));
+  assert.deepEqual(withProcess.ok && withProcess.state.sessions[0].agentProcess, { pid: 7, start: '9' });
   assert.equal(parseSnapshot(snapshot([session])).ok, true);
   for (const field of state.$defs.session.required) {
     const { [field]: _dropped, ...missing } = session;
@@ -36,9 +39,10 @@ test('the state schema names exactly the vocabulary and session fields the reade
 });
 
 test('the event schema names exactly the fields a normalized event carries', () => {
-  const normalized = normalizeEvent('stop', { session_id: 's', cwd: '/home/me/p' });
+  const normalized = normalizeEvent('stop', { session_id: 's', cwd: '/home/me/p' }, {});
   assert.deepEqual([...event.required].sort(), Object.keys(normalized).sort());
-  assert.deepEqual(Object.keys(event.properties).sort(), Object.keys(normalized).sort());
+  const withProcess = normalizeEvent('stop', { session_id: 's', cwd: '/home/me/p' }, { CLAUDE_PID: String(process.pid) });
+  assert.deepEqual(Object.keys(event.properties).sort(), Object.keys(withProcess).sort());
 });
 
 test('presentation.json matches every label, intent, priority, urgency, and limit', () => {
@@ -58,15 +62,17 @@ test('presentation.json matches every label, intent, priority, urgency, and limi
   assert.equal(presentation.sessionRetentionMs, sessionRetentionMs);
   assert.equal(presentation.maxSnapshotBytes, maxSnapshotBytes);
   assert.equal(presentation.titleNameLimit, titleNameLimit);
+  assert.deepEqual([presentation.ended.label, presentation.ended.intent], [endedLabel, 'quiet']);
+  assert.equal(presentation.livenessIntervalMs, livenessIntervalMs);
 });
 
 test('every contract fixture is a valid snapshot and presents exactly its expected view', async () => {
   const names = (await readdir(new URL('fixtures/', contract))).filter((name) => name.endsWith('.json'));
-  assert.ok(names.length >= 7);
+  assert.ok(names.length >= 9);
   for (const name of names) {
     const fixture = await json(`fixtures/${name}`);
     const parsed = parseSnapshot(JSON.stringify(fixture.snapshot));
     assert.equal(parsed.ok, true, name);
-    assert.deepEqual(presentSnapshot(parsed.state, { now: Date.parse(fixture.now) }), fixture.view, name);
+    assert.deepEqual(presentSnapshot(parsed.state, { now: Date.parse(fixture.now), liveness: fixture.liveness ?? {} }), fixture.view, name);
   }
 });

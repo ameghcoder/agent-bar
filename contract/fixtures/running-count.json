@@ -70,7 +70,9 @@
         "attention": true,
         "stale": false,
         "staleForMs": 0,
-        "lastSeenAt": "2026-10-08T11:59:00.000Z"
+        "lastSeenAt": "2026-10-08T11:59:00.000Z",
+        "alive": false,
+        "ended": false
       },
       {
         "sessionId": "waits",
@@ -84,7 +86,9 @@
         "attention": true,
         "stale": false,
         "staleForMs": 0,
-        "lastSeenAt": "2026-10-08T11:56:00.000Z"
+        "lastSeenAt": "2026-10-08T11:56:00.000Z",
+        "alive": false,
+        "ended": false
       },
       {
         "sessionId": "one",
@@ -98,7 +102,9 @@
         "attention": false,
         "stale": false,
         "staleForMs": 0,
-        "lastSeenAt": "2026-10-08T11:58:00.000Z"
+        "lastSeenAt": "2026-10-08T11:58:00.000Z",
+        "alive": false,
+        "ended": false
       },
       {
         "sessionId": "two",
@@ -112,7 +118,9 @@
         "attention": false,
         "stale": false,
         "staleForMs": 0,
-        "lastSeenAt": "2026-10-08T11:57:00.000Z"
+        "lastSeenAt": "2026-10-08T11:57:00.000Z",
+        "alive": false,
+        "ended": false
       }
     ],
     "title": "asks - Permission needed - 1m ago +2",

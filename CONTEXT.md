@@ -75,8 +75,9 @@ as "status unknown/stale", never as a confirmed failure or completion.
 ## Current gaps
 
 - No explicit permission grant/denial observation.
-- No crash detection (a closed terminal reads as stale, not ended), history
-  rotation, or history-based snapshot repair.
+- Liveness (ADR 0008) is Linux-only and needs `CLAUDE_PID` from Claude Code;
+  without it a closed terminal still reads as stale, not ended.
+- No history rotation or history-based snapshot repair.
 - No `.deb` package or tested installation/uninstallation flow.
 
 ## Scope boundary for v1 beta

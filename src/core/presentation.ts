@@ -56,6 +56,10 @@ export interface SessionView {
   stale: boolean;
   staleForMs: number;
   lastSeenAt: string;
+  // ADR 0008, from PresentOptions.liveness: the agent's process is known to be
+  // running (`alive`) or known to be gone (`ended`). Both false when unknown.
+  alive: boolean;
+  ended: boolean;
 }
 
 export interface IndicatorView {
@@ -75,10 +79,21 @@ export interface IndicatorView {
   health: string;
 }
 
+export type Liveness = 'alive' | 'ended';
+
 export interface PresentOptions {
   now?: number;
   staleAfterMs?: number;
+  // Per session ID. A session not listed is unknown and presented as before.
+  liveness?: Readonly<Record<string, Liveness>>;
 }
+
+// An ended session's process is gone, so its last observed status is no
+// longer current: a dead process is not waiting for permission (ADR 0008).
+export const endedLabel = 'Ended';
+// How often a reader re-checks that each session's agent process still runs.
+export const livenessIntervalMs = 10_000;
+const endedIntent: Intent = 'quiet';
 
 // Short, safe-to-render relative time. Degrades the same way staleness does:
 // a future timestamp (clock skew) never claims a specific age, and an
@@ -113,26 +128,29 @@ function shortName(name: string): string {
   return points.length > titleNameLimit ? `${points.slice(0, titleNameLimit - 1).join('')}…` : name;
 }
 
-function toView(session: SessionState, now: number, staleAfterMs: number, ambiguous: boolean): SessionView {
+function toView(session: SessionState, now: number, staleAfterMs: number, ambiguous: boolean, liveness: Liveness | undefined): SessionView {
+  const ended = liveness === 'ended';
   // An unreadable timestamp cannot prove freshness, so it counts as stale
   // rather than silently passing the >= test as NaN would.
   const age = now - Date.parse(session.lastSeenAt);
   const overdue = Number.isNaN(age) ? 0 : Math.max(age - staleAfterMs, 0);
-  const stale = activeStatuses.includes(session.status) && (Number.isNaN(age) || age >= staleAfterMs);
+  const stale = !ended && activeStatuses.includes(session.status) && (Number.isNaN(age) || age >= staleAfterMs);
   return {
     sessionId: session.sessionId,
     projectName: session.projectName,
     status: session.status,
-    label: statusLabel(session.status),
+    label: ended ? endedLabel : statusLabel(session.status),
     // ADR 0004: staleness is shown as unknown, never as failure or completion.
-    intent: stale ? statusIntent('unknown') : statusIntent(session.status),
+    intent: ended ? endedIntent : stale ? statusIntent('unknown') : statusIntent(session.status),
     message: session.lastMessage,
     hint: ambiguous ? parentName(session.projectPath) : '',
     relative: relativeTime(session.lastSeenAt, now),
-    attention: attentionStatuses.includes(session.status),
+    attention: !ended && attentionStatuses.includes(session.status),
     stale,
     staleForMs: stale ? overdue : 0,
     lastSeenAt: session.lastSeenAt,
+    alive: liveness === 'alive',
+    ended,
   };
 }
 
@@ -151,6 +169,7 @@ function compare(left: SessionView, right: SessionView): number {
 function topBarTitle(leader: SessionView | undefined, otherRunning: number): string {
   if (!leader) return 'AgentBar - No sessions';
   const name = shortName(leader.projectName);
+  if (leader.ended) return `${name} - ${endedLabel} - ${leader.relative}`;
   if (leader.stale) {
     // An unreadable timestamp cannot name an age; say only what is known.
     return leader.relative === 'unknown' ? `${name} - No updates` : `${name} - No updates - ${leader.relative}`;
@@ -179,22 +198,24 @@ export function presentSnapshot(state: AgentBarState, options: PresentOptions = 
   const names = new Map<string, number>();
   for (const session of state.sessions) names.set(session.projectName, (names.get(session.projectName) ?? 0) + 1);
   const sessions = state.sessions
-    .map((session) => toView(session, now, staleAfterMs, (names.get(session.projectName) ?? 0) > 1))
+    .map((session) => toView(session, now, staleAfterMs, (names.get(session.projectName) ?? 0) > 1, options.liveness?.[session.sessionId]))
     .sort(compare);
   // A stale session only leads when nothing fresh exists: an old unanswered
   // permission request must not hide the session you are using right now.
   // `sessions` is already attention-first, most recent first, and the sort
   // below is stable, so ties keep that order.
-  const fresh = sessions.filter((session) => !session.stale);
-  const pool = fresh.length > 0 ? fresh : sessions;
+  // Likewise an ended session only leads when every session has ended.
+  const running = sessions.filter((session) => !session.ended);
+  const fresh = running.filter((session) => !session.stale);
+  const pool = fresh.length > 0 ? fresh : running.length > 0 ? running : sessions;
   const leader = [...pool].sort((left, right) => statusPriority(right.status) - statusPriority(left.status))[0];
   // The top bar has room for one honest word: a stale leader reads "unknown"
   // there, while its menu row still names the last status actually observed.
   const summary = leader?.stale ? 'unknown' : leader?.status ?? 'idle';
   return {
     status: leader?.status ?? 'idle',
-    label: statusLabel(summary),
-    intent: statusIntent(summary),
+    label: leader?.ended ? endedLabel : statusLabel(summary),
+    intent: leader?.ended ? endedIntent : statusIntent(summary),
     stale: leader?.stale ?? false,
     attentionCount: sessions.filter((session) => session.attention).length,
     sessions,

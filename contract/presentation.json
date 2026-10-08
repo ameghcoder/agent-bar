@@ -47,5 +47,11 @@
   "staleAfterMs": 600000,
   "sessionRetentionMs": 86400000,
   "maxSnapshotBytes": 1048576,
-  "titleNameLimit": 18
+  "titleNameLimit": 18,
+  "ended": {
+    "label": "Ended",
+    "intent": "quiet",
+    "$comment": "A session whose agent process is gone (ADR 0008). Replaces the status label; never stale, never attention, never in +N."
+  },
+  "livenessIntervalMs": 10000
 }

@@ -48,7 +48,9 @@
         "attention": false,
         "stale": false,
         "staleForMs": 0,
-        "lastSeenAt": "2026-10-08T11:59:00.000Z"
+        "lastSeenAt": "2026-10-08T11:59:00.000Z",
+        "alive": false,
+        "ended": false
       },
       {
         "sessionId": "b",
@@ -62,7 +64,9 @@
         "attention": false,
         "stale": false,
         "staleForMs": 0,
-        "lastSeenAt": "2026-10-08T11:55:00.000Z"
+        "lastSeenAt": "2026-10-08T11:55:00.000Z",
+        "alive": false,
+        "ended": false
       }
     ],
     "title": "api - Working - 1m ago",

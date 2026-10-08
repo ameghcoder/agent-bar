@@ -16,10 +16,10 @@ async function temporaryDirectory(t) {
   return directory;
 }
 
-// CLAUDE_PROJECT_DIR is removed unless a test sets it, so running the suite
+// CLAUDE_PROJECT_DIR and CLAUDE_PID are removed unless a test sets them, so running the suite
 // from inside a Claude hook or session cannot change which root is recorded.
 function run(directory, args, input = '', command = process.execPath, env = {}) {
-  const { CLAUDE_PROJECT_DIR: _ignored, ...inherited } = process.env;
+  const { CLAUDE_PROJECT_DIR: _ignored, CLAUDE_PID: _pid, ...inherited } = process.env;
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, {
       env: { ...inherited, AGENTBAR_STATE_DIR: directory, CLAUDE_CONFIG_DIR: directory, ...env },
@@ -312,5 +312,23 @@ test('an empty or relative CLAUDE_PROJECT_DIR is ignored', async (t) => {
     const directory = await temporaryDirectory(t);
     await hook(directory, 'session_start', { session_id: 'odd', cwd: '/home/me/real' }, { CLAUDE_PROJECT_DIR: value });
     assert.equal((await readState(directory)).sessions[0].projectPath, '/home/me/real', JSON.stringify(value));
+  }
+});
+
+// ADR 0008: Claude Code passes its own PID to hooks as CLAUDE_PID. The session
+// records it with its /proc start time, so a reused PID is never mistaken for it.
+test('a hook records the Claude process from CLAUDE_PID with its start token', async (t) => {
+  const directory = await temporaryDirectory(t);
+  const stat = await readFile(`/proc/${process.pid}/stat`, 'utf8');
+  const start = stat.slice(stat.lastIndexOf(')') + 2).split(' ')[19];
+  await hook(directory, 'pre_tool_use', { session_id: 'live', cwd: '/home/me/p', tool_name: 'Bash' }, { CLAUDE_PID: String(process.pid) });
+  assert.deepEqual((await readState(directory)).sessions[0].agentProcess, { pid: process.pid, start });
+}, );
+
+test('no usable CLAUDE_PID records no process', async (t) => {
+  for (const value of [undefined, '', 'abc', '-3', '999999999']) {
+    const directory = await temporaryDirectory(t);
+    await hook(directory, 'pre_tool_use', { session_id: 'none', cwd: '/home/me/p', tool_name: 'Bash' }, value === undefined ? {} : { CLAUDE_PID: value });
+    assert.equal('agentProcess' in (await readState(directory)).sessions[0], false, String(value));
   }
 });

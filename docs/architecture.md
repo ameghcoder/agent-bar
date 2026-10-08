@@ -149,6 +149,24 @@ treated as fresh. An unparseable one is treated as stale, because a value we
 cannot read cannot prove freshness, and `NaN >= threshold` is `false` — which
 would silently claim the session is fine.
 
+### Liveness (ADR 0008)
+
+Capture records the agent's process as `agentProcess: { pid, start }`: Claude
+Code passes its PID to hooks in `CLAUDE_PID`, and `start` is the `starttime`
+field of `/proc/<pid>/stat`, so a reused PID never matches. `StateWatcher`
+re-reads that one file per session every `livenessIntervalMs` (10 s), only for
+sessions that recorded a process, and republishes only when a session's
+liveness changes. The result is passed to `presentSnapshot` as
+`options.liveness`; a session not in the map is unknown and presented as
+before.
+
+An **ended** session (file gone or `start` differs) reads "Ended" with the quiet
+intent: never stale, never attention, never in `+N`, never a notification, and
+it leads the title only when every session has ended. An **alive** session
+still goes stale after 10 minutes, because a running process proves Claude is
+open, not that it is working; its menu row adds "Claude open". Only
+`/proc/<pid>/stat` is ever read, never `cmdline` or `environ`.
+
 ### Retention
 
 Separate from staleness: a session whose `lastSeenAt` is more than 24 hours

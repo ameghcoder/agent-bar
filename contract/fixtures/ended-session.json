@@ -1,0 +1,88 @@
+{
+  "description": "The agent process of a permission request is gone: the row reads Ended, is not attention, and a live session leads.",
+  "now": "2026-10-08T12:00:00.000Z",
+  "liveness": {
+    "closed": "ended",
+    "open": "alive"
+  },
+  "snapshot": {
+    "schemaVersion": 1,
+    "updatedAt": "2026-10-08T12:00:00.000Z",
+    "sessions": [
+      {
+        "sessionId": "closed",
+        "projectName": "closed",
+        "projectPath": "/home/me/closed",
+        "source": "claude-code",
+        "status": "permission_required",
+        "lastEventType": "stop",
+        "lastMessage": "m",
+        "startedAt": "2026-10-08T11:28:00.000Z",
+        "lastSeenAt": "2026-10-08T11:58:00.000Z",
+        "agentProcess": {
+          "pid": 101,
+          "start": "1000"
+        }
+      },
+      {
+        "sessionId": "open",
+        "projectName": "open",
+        "projectPath": "/home/me/open",
+        "source": "claude-code",
+        "status": "running",
+        "lastEventType": "stop",
+        "lastMessage": "m",
+        "startedAt": "2026-10-08T11:27:00.000Z",
+        "lastSeenAt": "2026-10-08T11:57:00.000Z",
+        "agentProcess": {
+          "pid": 102,
+          "start": "1000"
+        }
+      }
+    ]
+  },
+  "view": {
+    "status": "running",
+    "label": "Working",
+    "intent": "active",
+    "stale": false,
+    "attentionCount": 0,
+    "sessions": [
+      {
+        "sessionId": "closed",
+        "projectName": "closed",
+        "status": "permission_required",
+        "label": "Ended",
+        "intent": "quiet",
+        "message": "m",
+        "hint": "",
+        "relative": "2m ago",
+        "attention": false,
+        "stale": false,
+        "staleForMs": 0,
+        "lastSeenAt": "2026-10-08T11:58:00.000Z",
+        "alive": false,
+        "ended": true
+      },
+      {
+        "sessionId": "open",
+        "projectName": "open",
+        "status": "running",
+        "label": "Working",
+        "intent": "active",
+        "message": "m",
+        "hint": "",
+        "relative": "3m ago",
+        "attention": false,
+        "stale": false,
+        "staleForMs": 0,
+        "lastSeenAt": "2026-10-08T11:57:00.000Z",
+        "alive": true,
+        "ended": false
+      }
+    ],
+    "title": "open - Working - 3m ago",
+    "leaderId": "open",
+    "health": "Receiving events · last 2m ago"
+  }
+}

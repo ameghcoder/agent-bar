@@ -57,6 +57,8 @@ export async function captureEvent(adapter: CaptureAdapter): Promise<ClaudeEvent
       lastMessage: event.message,
       startedAt: previous?.startedAt ?? event.timestamp,
       lastSeenAt: event.timestamp,
+      // Overwritten on every event, so a resumed session points at its current process.
+      ...(event.agentProcess ? { agentProcess: event.agentProcess } : {}),
     };
     if (index === -1) state.sessions.push(session);
     else state.sessions[index] = session;

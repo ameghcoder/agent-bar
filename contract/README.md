@@ -7,7 +7,8 @@ agent adapter in any language reads these files instead of the TypeScript.
 - `event.schema.json`: one normalized event, one line of `events.jsonl`.
 - `presentation.json`: per-status label, intent, priority, and notification
   urgency, plus the limits every reader applies (stale threshold, 24-hour
-  retention, 1 MiB snapshot cap, 18-character title name).
+  retention, 1 MiB snapshot cap, 18-character title name, 10-second liveness
+  check), and the "Ended" rule for a session whose process is gone.
 - `fixtures/`: conformance cases. Each holds a snapshot, a clock (`now`), and
   the exact view the presentation model must produce. Ordering, staleness, the
   leader choice, and notification transitions are logic, not data, so a port

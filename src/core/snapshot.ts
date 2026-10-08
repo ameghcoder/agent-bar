@@ -13,6 +13,14 @@ export const sessionRetentionMs = 24 * 60 * 60 * 1000;
 // is corrupt or hostile, and the extension must not pull it into GNOME Shell.
 export const maxSnapshotBytes = 1024 * 1024;
 
+// ADR 0008: the agent's process, so a reader can tell whether it still runs.
+// `start` is an opaque per-OS identity token (Linux: /proc/<pid>/stat field 22),
+// because the kernel reuses PIDs and the pair is what identifies one process.
+export interface AgentProcess {
+  pid: number;
+  start: string;
+}
+
 export interface SessionState {
   sessionId: string;
   projectName: string;
@@ -23,6 +31,7 @@ export interface SessionState {
   lastMessage: string;
   startedAt: string;
   lastSeenAt: string;
+  agentProcess?: AgentProcess;
 }
 
 export interface AgentBarState {
@@ -65,11 +74,33 @@ export function parseSnapshot(text: string): SnapshotParseResult {
   if (isRecord(value) && isDate(value.updatedAt) && Array.isArray(value.sessions) && value.sessions.every(isSession)) {
     return {
       ok: true,
-      state: { schemaVersion, updatedAt: value.updatedAt, sessions: value.sessions },
+      state: { schemaVersion, updatedAt: value.updatedAt, sessions: value.sessions.map(withValidProcess) },
       legacy: !('schemaVersion' in value),
     };
   }
   return { ok: false, reason: 'invalid_shape', message: 'Snapshot does not match the version 1 session contract.' };
+}
+
+function isAgentProcess(value: unknown): value is AgentProcess {
+  return isRecord(value) && Number.isInteger(value.pid) && (value.pid as number) > 0
+    && typeof value.start === 'string' && value.start !== '';
+}
+
+// A malformed agentProcess is dropped, not fatal: liveness is an aid, and its
+// absence must never hide a session (ADR 0008).
+function withValidProcess(session: SessionState): SessionState {
+  if (!('agentProcess' in session) || isAgentProcess(session.agentProcess)) return session;
+  const { agentProcess: _dropped, ...rest } = session;
+  return rest;
+}
+
+// The `starttime` field of a Linux /proc/<pid>/stat line. The process name in
+// field 2 may hold spaces and parentheses, so fields are counted from the last ')'.
+export function linuxStartToken(stat: string): string | undefined {
+  const close = stat.lastIndexOf(')');
+  if (close === -1) return undefined;
+  const token = stat.slice(close + 2).split(' ')[19];
+  return token && /^\d+$/.test(token) ? token : undefined;
 }
 
 // Unreadable or future timestamps are kept: they cannot prove the session old,

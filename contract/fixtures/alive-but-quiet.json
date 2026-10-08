@@ -1,20 +1,27 @@
 {
-  "description": "Only a stale session remains: the title says No updates instead of guessing a state.",
+  "description": "No events for 45 minutes while the agent process still runs: still stale (No updates), and the row is marked alive.",
   "now": "2026-10-08T12:00:00.000Z",
+  "liveness": {
+    "long-task": "alive"
+  },
   "snapshot": {
     "schemaVersion": 1,
     "updatedAt": "2026-10-08T12:00:00.000Z",
     "sessions": [
       {
-        "sessionId": "quiet",
-        "projectName": "quiet",
-        "projectPath": "/home/me/quiet",
+        "sessionId": "long-task",
+        "projectName": "long-task",
+        "projectPath": "/home/me/long-task",
         "source": "claude-code",
         "status": "running",
         "lastEventType": "stop",
         "lastMessage": "m",
         "startedAt": "2026-10-08T10:45:00.000Z",
-        "lastSeenAt": "2026-10-08T11:15:00.000Z"
+        "lastSeenAt": "2026-10-08T11:15:00.000Z",
+        "agentProcess": {
+          "pid": 103,
+          "start": "1000"
+        }
       }
     ]
   },
@@ -26,8 +33,8 @@
     "attentionCount": 0,
     "sessions": [
       {
-        "sessionId": "quiet",
-        "projectName": "quiet",
+        "sessionId": "long-task",
+        "projectName": "long-task",
         "status": "running",
         "label": "Working",
         "intent": "unknown",
@@ -38,12 +45,12 @@
         "stale": true,
         "staleForMs": 2100000,
         "lastSeenAt": "2026-10-08T11:15:00.000Z",
-        "alive": false,
+        "alive": true,
         "ended": false
       }
     ],
-    "title": "quiet - No updates - 45m ago",
-    "leaderId": "quiet",
+    "title": "long-task - No updates - 45m ago",
+    "leaderId": "long-task",
     "health": "No recent events · last 45m ago"
   }
 }

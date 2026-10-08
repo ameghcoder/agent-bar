@@ -116,3 +116,16 @@ test('the first valid view after an unavailable start is a baseline and notifies
   assert.ok(!kinds.includes('notifications'), 'the baseline view must not notify');
   assert.equal(lines.at(-1).view.status, 'permission_required');
 });
+
+// ADR 0008: liveness is checked against a real process, not a mock.
+const livenessHarness = fileURLToPath(new URL('fixtures/gjs-liveness-harness.js', import.meta.url));
+
+test('a session reads alive while its process runs and ended once it is gone, without notifying', { skip: process.platform !== 'linux' }, async (t) => {
+  const { lines } = await runHarness(t, livenessHarness);
+  assert.ok(!lines.some((line) => line.kind === 'notifications'), 'liveness changes never notify');
+  const views = lines.filter((line) => line.kind === 'view');
+  assert.deepEqual(views[0].liveness, { child: 'alive', reused: 'ended', plain: 'unknown' });
+  assert.equal(views[0].attentionCount, 2, 'the ended session is no longer attention');
+  assert.deepEqual(views.at(-1).liveness, { child: 'ended', reused: 'ended', plain: 'unknown' });
+  assert.equal(views.at(-1).attentionCount, 1);
+});

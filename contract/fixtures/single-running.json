@@ -37,7 +37,9 @@
         "attention": false,
         "stale": false,
         "staleForMs": 0,
-        "lastSeenAt": "2026-10-08T11:58:00.000Z"
+        "lastSeenAt": "2026-10-08T11:58:00.000Z",
+        "alive": false,
+        "ended": false
       }
     ],
     "title": "agent-bar - Working - 2m ago",

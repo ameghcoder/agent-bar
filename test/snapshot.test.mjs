@@ -5,7 +5,12 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
-import { parseSnapshot } from '../dist/src/core/snapshot.js';
+import { linuxStartToken, parseSnapshot } from '../dist/src/core/snapshot.js';
+
+function withoutClaudeEnv() {
+  const { CLAUDE_PID: _pid, CLAUDE_PROJECT_DIR: _dir, ...rest } = process.env;
+  return rest;
+}
 
 const receiver = fileURLToPath(new URL('../dist/agents/claude-code/hooks/claude-hook.js', import.meta.url));
 
@@ -22,7 +27,8 @@ async function temporaryDirectory(t) {
 function hook(directory, type, raw = {}) {
   return new Promise((resolve, reject) => {
     const child = spawn(process.execPath, [receiver, '--event', type], {
-      env: { ...process.env, AGENTBAR_STATE_DIR: directory },
+      // Claude's own variables are dropped so a run inside Claude Code records nothing extra.
+      env: { ...withoutClaudeEnv(), AGENTBAR_STATE_DIR: directory },
       stdio: ['pipe', 'pipe', 'pipe'],
     });
     let stderr = '';
@@ -119,4 +125,32 @@ test('the compiled snapshot reader only imports portable sibling files, never a 
   for (const specifier of specifiers) assert.match(specifier, /^\.\//, specifier);
   const vocabulary = await readFile(new URL('../dist/src/core/vocabulary.js', import.meta.url), 'utf8');
   assert.doesNotMatch(vocabulary, /^\s*(import|export .* from|const .* = require)\b/m, 'its one dependency must itself be import-free');
+});
+
+// ADR 0008: agentProcess is optional and additive. A valid one is kept; a
+// malformed one is dropped without rejecting the snapshot, because liveness is
+// an aid and its absence must never hide sessions.
+const at = '2026-10-09T12:00:00.000Z';
+const row = (extra = {}) => ({
+  sessionId: 's', projectName: 'p', projectPath: '/p', source: 'claude-code', status: 'running',
+  lastEventType: 'pre_tool_use', lastMessage: 'm', startedAt: at, lastSeenAt: at, ...extra,
+});
+const text = (sessions) => JSON.stringify({ schemaVersion: 1, updatedAt: at, sessions });
+
+test('a valid agentProcess is kept and a malformed one is dropped without rejecting the session', () => {
+  const kept = parseSnapshot(text([row({ agentProcess: { pid: 4242, start: '1522049' } })]));
+  assert.equal(kept.ok, true);
+  assert.deepEqual(kept.state.sessions[0].agentProcess, { pid: 4242, start: '1522049' });
+  for (const agentProcess of [{ pid: '4242', start: '1' }, { pid: 0, start: '1' }, { pid: 1.5, start: '1' }, { pid: 4242 }, 'pid', null]) {
+    const parsed = parseSnapshot(text([row({ agentProcess })]));
+    assert.equal(parsed.ok, true, JSON.stringify(agentProcess));
+    assert.equal('agentProcess' in parsed.state.sessions[0], false, JSON.stringify(agentProcess));
+  }
+});
+
+test('the Linux start token is field 22 of /proc/<pid>/stat, even when the process name holds spaces and parentheses', () => {
+  const fields = Array.from({ length: 50 }, (_, index) => String(index + 3));
+  assert.equal(linuxStartToken(`123 (a) b) ${fields.join(' ')}`), '22');
+  assert.equal(linuxStartToken('garbage'), undefined);
+  assert.equal(linuxStartToken(''), undefined);
 });

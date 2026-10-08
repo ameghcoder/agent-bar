@@ -78,7 +78,7 @@ test('an identical last-seen time falls back to session id so ordering is determ
 
 test('a session row carries presentation fields only, never raw payload or full path', () => {
   const [row] = presentSnapshot(snapshot([
-    session('alpha', 'waiting', 1, { raw: { tool_input: { command: 'rm -rf /' } } }),
+    session('alpha', 'waiting', 1, { raw: { tool_input: { command: 'rm -rf /' } }, agentProcess: { pid: 4242, start: '777' } }),
   ]), { now }).sessions;
   assert.deepEqual(row, {
     sessionId: 'alpha',
@@ -93,9 +93,11 @@ test('a session row carries presentation fields only, never raw payload or full 
     stale: false,
     staleForMs: 0,
     lastSeenAt: minutes(1),
+    alive: false,
+    ended: false,
   });
   const serialised = JSON.stringify(row);
-  assert.doesNotMatch(serialised, /secret|rm -rf|tool_input|projectPath|startedAt|lastEventType/);
+  assert.doesNotMatch(serialised, /secret|rm -rf|tool_input|projectPath|startedAt|lastEventType|agentProcess|4242/);
 });
 
 test('an empty snapshot presents a quiet indicator with no sessions', () => {
@@ -406,4 +408,47 @@ test('health carries no session data', () => {
 
 test('health reads naturally for an event that just arrived', () => {
   assert.equal(view([session('now', 'running', 0)]).health, 'Receiving events · just now');
+});
+
+// ADR 0008: liveness is an input, like the clock. A session missing from the
+// map is unknown and behaves exactly as before.
+const live = (sessions, liveness) => presentSnapshot(snapshot(sessions), { now, liveness });
+
+test('an ended session reads Ended, quiet, never stale and never attention', () => {
+  const result = live([session('gone', 'permission_required', 30)], { gone: 'ended' });
+  const [row] = result.sessions;
+  assert.deepEqual([row.label, row.intent, row.stale, row.attention, row.ended], ['Ended', 'quiet', false, false, true]);
+  assert.equal(result.attentionCount, 0);
+  assert.equal(result.title, 'gone - Ended - 30m ago');
+  assert.equal(result.intent, 'quiet');
+});
+
+test('an ended session never leads over a live or unknown one, and is not counted in +N', () => {
+  const result = live([
+    session('gone', 'permission_required', 1),
+    session('here', 'idle', 2),
+    session('other', 'running', 3, { sessionId: 'other' }),
+    session('also-gone', 'running', 1, { sessionId: 'also-gone' }),
+  ], { gone: 'ended', 'also-gone': 'ended', here: 'alive' });
+  assert.equal(result.leaderId, 'other');
+  assert.equal(result.title, 'other - Working - 3m ago');
+});
+
+test('a stale session whose process is alive stays stale but is marked alive for the menu', () => {
+  const result = presentSnapshot(snapshot([session('quiet', 'running', 45)]), { now, staleAfterMs: 600_000, liveness: { quiet: 'alive' } });
+  const [row] = result.sessions;
+  assert.deepEqual([row.stale, row.alive, row.ended], [true, true, false]);
+  assert.equal(result.title, 'quiet - No updates - 45m ago');
+});
+
+test('without liveness every session is neither alive nor ended, exactly as before', () => {
+  const sessions = [session('a', 'running', 1), session('b', 'permission_required', 2)];
+  const plain = presentSnapshot(snapshot(sessions), { now });
+  assert.deepEqual(live(sessions, {}), plain);
+  assert.ok(plain.sessions.every((row) => row.alive === false && row.ended === false));
+});
+
+test('a process ending raises no notification', () => {
+  const sessions = [session('a', 'permission_required', 1)];
+  assert.deepEqual(notificationsFor(live(sessions, { a: 'alive' }), live(sessions, { a: 'ended' })), []);
 });

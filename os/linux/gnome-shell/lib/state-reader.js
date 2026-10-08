@@ -1,8 +1,8 @@
 import GLib from 'gi://GLib';
 import Gio from 'gi://Gio';
 
-import { maxSnapshotBytes, parseSnapshot, withoutExpiredSessions } from './snapshot.js';
-import { notificationsFor, presentSnapshot } from './presentation.js';
+import { linuxStartToken, maxSnapshotBytes, parseSnapshot, withoutExpiredSessions } from './snapshot.js';
+import { livenessIntervalMs, notificationsFor, presentSnapshot } from './presentation.js';
 
 // Shell-independent: only GLib/Gio, no St/Clutter/PanelMenu/Main, so this
 // module runs headlessly under `gjs` in tests as well as inside GNOME Shell.
@@ -19,6 +19,27 @@ function emptySnapshot(now) {
   return { schemaVersion: 1, updatedAt: new Date(now).toISOString(), sessions: [] };
 }
 
+// ADR 0008: a session's agent process is alive when /proc/<pid>/stat exists
+// and carries the start token recorded with it; otherwise it has ended (a
+// reused PID has a different start). Only that one file is read. procfs reads
+// are served from kernel memory, so this synchronous read cannot stall the
+// Shell the way disk I/O could.
+function livenessOf(sessions) {
+  const liveness = {};
+  for (const session of sessions) {
+    if (!session.agentProcess) continue;
+    let start;
+    try {
+      const [, bytes] = GLib.file_get_contents(`/proc/${session.agentProcess.pid}/stat`);
+      start = linuxStartToken(new TextDecoder().decode(bytes));
+    } catch {
+      start = undefined;
+    }
+    liveness[session.sessionId] = start === session.agentProcess.start ? 'alive' : 'ended';
+  }
+  return liveness;
+}
+
 export class StateWatcher {
   constructor(statePath, callbacks = {}, options = {}) {
     this._statePath = statePath;
@@ -28,11 +49,17 @@ export class StateWatcher {
     this._onNotifications = callbacks.onNotifications ?? (() => {});
     this._debounceMs = options.debounceMs ?? defaultDebounceMs;
     this._fallbackIntervalMs = options.fallbackIntervalMs ?? defaultFallbackIntervalMs;
+    this._livenessIntervalMs = options.livenessIntervalMs ?? livenessIntervalMs;
     this._staleAfterMs = options.staleAfterMs;
     this._now = options.now ?? (() => Date.now());
     this._monitor = null;
     this._debounceSource = 0;
     this._fallbackSource = 0;
+    this._livenessSource = 0;
+    // The last successfully read state, kept so a liveness change can be
+    // presented without re-reading the file; null while state is unavailable.
+    this._lastState = null;
+    this._liveness = {};
     this._previousView = undefined;
     // Bumped by every read; a read whose number is no longer current drops its
     // result, so an older read finishing late cannot overwrite a newer view.
@@ -49,6 +76,11 @@ export class StateWatcher {
       this._reread();
       return GLib.SOURCE_CONTINUE;
     });
+    this._livenessSource = GLib.timeout_add(GLib.PRIORITY_DEFAULT, this._livenessIntervalMs, () => {
+      if (this._destroyed) return GLib.SOURCE_REMOVE;
+      this._refreshLiveness();
+      return GLib.SOURCE_CONTINUE;
+    });
   }
 
   // Idempotent and safe to call more than once; disable() must never throw.
@@ -61,6 +93,10 @@ export class StateWatcher {
     if (this._fallbackSource) {
       GLib.Source.remove(this._fallbackSource);
       this._fallbackSource = 0;
+    }
+    if (this._livenessSource) {
+      GLib.Source.remove(this._livenessSource);
+      this._livenessSource = 0;
     }
     if (this._monitor) {
       this._monitor.cancel();
@@ -144,12 +180,17 @@ export class StateWatcher {
       // No state written yet is not a failure; it is an honest "no sessions".
       this._present(null);
     } else {
-      this._onUnavailable(`Cannot read the state file: ${error.message}`);
+      this._unavailable(`Cannot read the state file: ${error.message}`);
     }
   }
 
   _tooLarge(bytes) {
-    this._onUnavailable(`State file is too large (${bytes} bytes, limit ${maxSnapshotBytes}).`);
+    this._unavailable(`State file is too large (${bytes} bytes, limit ${maxSnapshotBytes}).`);
+  }
+
+  _unavailable(message) {
+    this._lastState = null;
+    this._onUnavailable(message);
   }
 
   // `text` is null when no state file exists yet. Everything after the read
@@ -159,20 +200,36 @@ export class StateWatcher {
     try {
       const now = this._now();
       if (text === null) {
+        this._lastState = null;
         this._publish(presentSnapshot(emptySnapshot(now)));
         return;
       }
       const parsed = parseSnapshot(text);
       if (!parsed.ok) {
-        this._onUnavailable(parsed.message);
+        this._unavailable(parsed.message);
         return;
       }
       // presentSnapshot stays pure and shows whatever it is given; sessions past
       // the retention window are dropped here, where state is read.
-      const state = { ...parsed.state, sessions: withoutExpiredSessions(parsed.state.sessions, now) };
-      this._publish(presentSnapshot(state, { now, staleAfterMs: this._staleAfterMs }));
+      this._lastState = { ...parsed.state, sessions: withoutExpiredSessions(parsed.state.sessions, now) };
+      this._liveness = livenessOf(this._lastState.sessions);
+      this._publish(presentSnapshot(this._lastState, { now, staleAfterMs: this._staleAfterMs, liveness: this._liveness }));
     } catch (error) {
-      this._onUnavailable(`Cannot present the state: ${error.message}`);
+      this._unavailable(`Cannot present the state: ${error.message}`);
+    }
+  }
+
+  // Runs on its own timer. Does nothing unless a session recorded a process,
+  // and republishes only when some session's liveness actually changed.
+  _refreshLiveness() {
+    if (!this._lastState || !this._lastState.sessions.some((session) => session.agentProcess)) return;
+    try {
+      const liveness = livenessOf(this._lastState.sessions);
+      if (JSON.stringify(liveness) === JSON.stringify(this._liveness)) return;
+      this._liveness = liveness;
+      this._publish(presentSnapshot(this._lastState, { now: this._now(), staleAfterMs: this._staleAfterMs, liveness }));
+    } catch (error) {
+      this._unavailable(`Cannot present the state: ${error.message}`);
     }
   }
 

@@ -66,7 +66,9 @@ function statePath() {
 
 function sessionRowText(session) {
     const hint = session.hint ? ` (${session.hint})` : '';
-    const stale = session.stale ? ' · stale' : '';
+    // ADR 0008: a stale session whose process still runs is a long quiet task,
+    // not a closed terminal.
+    const stale = session.stale ? (session.alive ? ' · stale · Claude open' : ' · stale') : '';
     return `${session.projectName}${hint} · ${session.label}${stale} · ${session.relative}`;
 }
 
