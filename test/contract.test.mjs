@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict';
 import { readdir, readFile } from 'node:fs/promises';
 import test from 'node:test';
-import { normalizeEvent } from '../dist/core/events.js';
+import { normalizeEvent } from '../dist/agents/claude-code/translate.js';
 import {
   defaultStaleAfterMs, notificationsFor, presentSnapshot, statusIntent, statusLabel, statusPriority, titleNameLimit,
-} from '../dist/core/presentation.js';
-import { maxSnapshotBytes, parseSnapshot, schemaVersion, sessionRetentionMs } from '../dist/core/snapshot.js';
-import { eventTypes, statuses } from '../dist/core/vocabulary.js';
+} from '../dist/src/core/presentation.js';
+import { maxSnapshotBytes, parseSnapshot, schemaVersion, sessionRetentionMs } from '../dist/src/core/snapshot.js';
+import { eventTypes, statuses } from '../dist/src/core/vocabulary.js';
 
 // ADR 0007: contract/ is the language-neutral source other ports read. These
 // tests hold it equal to the TypeScript implementation, without a schema

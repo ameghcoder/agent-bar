@@ -9,14 +9,14 @@
   },
   "packageManager": "pnpm@11.1.0",
   "bin": {
-    "agentbar": "dist/cli/index.js",
-    "agentbar-hook": "dist/hooks/claude-hook.js"
+    "agentbar": "dist/src/cli/index.js",
+    "agentbar-hook": "dist/agents/claude-code/hooks/claude-hook.js"
   },
   "scripts": {
     "build": "tsc && node os/linux/scripts/copy-extension-lib.mjs",
     "typecheck": "tsc --noEmit",
-    "agentbar": "node dist/cli/index.js",
-    "agentbar-hook": "node dist/hooks/claude-hook.js",
+    "agentbar": "node dist/src/cli/index.js",
+    "agentbar-hook": "node dist/agents/claude-code/hooks/claude-hook.js",
     "test": "pnpm build && node --test test/*.test.mjs"
   },
   "dependencies": {

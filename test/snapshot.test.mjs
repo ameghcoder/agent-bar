@@ -5,9 +5,9 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
-import { parseSnapshot } from '../dist/core/snapshot.js';
+import { parseSnapshot } from '../dist/src/core/snapshot.js';
 
-const receiver = fileURLToPath(new URL('../dist/hooks/claude-hook.js', import.meta.url));
+const receiver = fileURLToPath(new URL('../dist/agents/claude-code/hooks/claude-hook.js', import.meta.url));
 
 function fixture(name) {
   return readFile(new URL(`./fixtures/${name}`, import.meta.url), 'utf8');
@@ -113,10 +113,10 @@ test('the writer upgrades a legacy file in place and refuses to overwrite a futu
 });
 
 test('the compiled snapshot reader only imports portable sibling files, never a node: module, so GJS can load it', async () => {
-  const compiled = await readFile(new URL('../dist/core/snapshot.js', import.meta.url), 'utf8');
+  const compiled = await readFile(new URL('../dist/src/core/snapshot.js', import.meta.url), 'utf8');
   const specifiers = [...compiled.matchAll(/^import .* from '([^']+)';$/gm)].map((match) => match[1]);
   assert.equal(specifiers.length > 0, true, 'sanity check: this file does import something');
   for (const specifier of specifiers) assert.match(specifier, /^\.\//, specifier);
-  const vocabulary = await readFile(new URL('../dist/core/vocabulary.js', import.meta.url), 'utf8');
+  const vocabulary = await readFile(new URL('../dist/src/core/vocabulary.js', import.meta.url), 'utf8');
   assert.doesNotMatch(vocabulary, /^\s*(import|export .* from|const .* = require)\b/m, 'its one dependency must itself be import-free');
 });

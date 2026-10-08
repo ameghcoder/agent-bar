@@ -5,10 +5,10 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
-import { createHooksConfig, shellQuote } from '../dist/scripts/install-claude-hooks.js';
+import { createHooksConfig, shellQuote } from '../dist/agents/claude-code/install/hooks-config.js';
 
-const receiver = fileURLToPath(new URL('../dist/hooks/claude-hook.js', import.meta.url));
-const cli = fileURLToPath(new URL('../dist/cli/index.js', import.meta.url));
+const receiver = fileURLToPath(new URL('../dist/agents/claude-code/hooks/claude-hook.js', import.meta.url));
+const cli = fileURLToPath(new URL('../dist/src/cli/index.js', import.meta.url));
 
 async function temporaryDirectory(t) {
   const directory = await mkdtemp(join(tmpdir(), 'agentbar-test-'));
@@ -183,8 +183,8 @@ test('install helper prints usable JSON; example matches the generator', async (
   const command = config.hooks.PreToolUse[0].hooks[0].command;
   assert.equal((await run(directory, ['-c', command], '{"session_id":"config-test","cwd":"/tmp/project"}', '/bin/sh')).code, 0);
   assert.equal((await readState(directory)).sessions[0].sessionId, 'config-test');
-  const example = JSON.parse(await readFile(new URL('../examples/claude-hooks-settings.example.json', import.meta.url), 'utf8'));
-  assert.deepEqual(example, createHooksConfig('node /absolute/path/to/agentbar/dist/hooks/claude-hook.js'));
+  const example = JSON.parse(await readFile(new URL('../agents/claude-code/settings.example.json', import.meta.url), 'utf8'));
+  assert.deepEqual(example, createHooksConfig('node /absolute/path/to/agentbar/dist/agents/claude-code/hooks/claude-hook.js'));
   const literal = "/tmp/path with spaces/it's a $(literal) `name`";
   const quoted = await run(directory, ['-c', `printf '%s' ${shellQuote(literal)}`], '', '/bin/sh');
   assert.equal(quoted.stdout, literal);

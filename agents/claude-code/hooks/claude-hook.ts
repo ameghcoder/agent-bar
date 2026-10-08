@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 import { Command, InvalidArgumentError, Option } from 'commander';
-import { eventTypes, isEventType, parseInput } from '../core/events.js';
-import { captureEvent } from '../core/state.js';
-import { version } from '../version.js';
+import { eventTypes, isEventType, parseInput } from '../../../src/core/events.js';
+import { captureEvent } from '../../../src/core/state.js';
+import { version } from '../../../src/core/version.js';
+import { claudeCodeCapture } from '../translate.js';
 
 async function readStdin(): Promise<string> {
   if (process.stdin.isTTY) return '';
@@ -34,7 +35,7 @@ const program = new Command()
   .action(async (options: { event: string }) => {
     // The option parser validates this before the action executes.
     if (!isEventType(options.event)) throw new Error(`Unsupported event: ${options.event}`);
-    await captureEvent(options.event, parseInput(await readStdin()));
+    await captureEvent(claudeCodeCapture(options.event, parseInput(await readStdin())));
     // No stdout: Claude treats hook output as context or permission decisions.
   });
 

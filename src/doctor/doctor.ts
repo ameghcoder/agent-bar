@@ -5,7 +5,7 @@ import { promisify } from 'node:util';
 import { isRecord } from '../core/events.js';
 import { getPaths } from '../core/paths.js';
 import { parseSnapshot } from '../core/snapshot.js';
-import { hookEvents, isAgentBarHandler, ownedPaths, type ClaudeHookName } from '../install/merge.js';
+import { hookEvents, isAgentBarHandler, ownedPaths, type ClaudeHookName } from '../../agents/claude-code/install/merge.js';
 
 export type CheckLevel = 'pass' | 'warn' | 'fail';
 

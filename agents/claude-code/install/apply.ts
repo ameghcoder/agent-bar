@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { mkdir, readFile, realpath, rename, rm, stat, writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { basename, dirname, isAbsolute, join } from 'node:path';
-import { isRecord, type JsonObject } from '../core/events.js';
+import { isRecord, type JsonObject } from '../../../src/core/events.js';
 import { installHooks, uninstallHooks, type MergeResult } from './merge.js';
 
 export function defaultSettingsPath(): string {

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { installHooks, uninstallHooks } from '../dist/install/merge.js';
+import { installHooks, uninstallHooks } from '../dist/agents/claude-code/install/merge.js';
 
 const command = "'/usr/bin/node' '/opt/agentbar/dist/hooks/claude-hook.js'";
 const officialEvents = [
@@ -149,4 +149,21 @@ test('summary lines name events and AgentBar actions only, never unrelated setti
       assert.doesNotMatch(line, /sk-ant|audit-bash|pnpm test|notify-send|mattpocock/);
     }
   }
+});
+
+// ADR 0007: the receiver moved from dist/hooks/ to dist/agents/claude-code/hooks/
+// and kept its file name, so installs made before the move stay recognised:
+// install refreshes them to the new path and uninstall still removes them.
+test('hooks pointing at the pre-ADR-0007 receiver path are refreshed by install and removed by uninstall', () => {
+  const legacy = "'/usr/bin/node' '/home/me/agent-bar/dist/hooks/claude-hook.js'";
+  const current = "'/usr/bin/node' '/home/me/agent-bar/dist/agents/claude-code/hooks/claude-hook.js'";
+  const before = installHooks({}, legacy).settings;
+  const refreshed = installHooks(before, current);
+  assert.equal(refreshed.ok, true);
+  const commands = Object.values(refreshed.settings.hooks).flatMap((groups) => groups.flatMap((group) => group.hooks.map((hook) => hook.command)));
+  assert.equal(commands.length, officialEvents.length, 'one handler per event, none duplicated');
+  assert.ok(commands.every((line) => line.startsWith(`${current} --event `)), 'every legacy handler now points at the new receiver');
+  const removed = uninstallHooks(before);
+  assert.equal(removed.ok, true);
+  assert.deepEqual(removed.settings, {}, 'a legacy-only install uninstalls completely');
 });

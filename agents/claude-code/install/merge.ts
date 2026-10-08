@@ -1,4 +1,4 @@
-import { eventTypes, isRecord, type EventType, type JsonObject } from '../core/events.js';
+import { eventTypes, isRecord, type EventType, type JsonObject } from '../../../src/core/events.js';
 
 // Official Claude Code hook names → AgentBar normalized event arguments.
 export const hookEvents = {

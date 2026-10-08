@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Copies the portable, node:-free core modules built by tsc into
+// Copies the portable, node:-free core modules built by tsc (dist/src/core) into
 // os/linux/gnome-shell/lib
 // so the GNOME Shell extension can import the same reader and presentation
 // logic Node's tests run, with no dist/ or node_modules dependency. See
@@ -15,5 +15,5 @@ const portableModules = ['vocabulary.js', 'snapshot.js', 'presentation.js'];
 const target = join(root, 'os', 'linux', 'gnome-shell', 'lib');
 await mkdir(target, { recursive: true });
 await Promise.all(
-  portableModules.map((name) => copyFile(join(root, 'dist', 'core', name), join(target, name))),
+  portableModules.map((name) => copyFile(join(root, 'dist', 'src', 'core', name), join(target, name))),
 );

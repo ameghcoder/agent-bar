@@ -4,6 +4,8 @@ AgentBar is a local-first Ubuntu/GNOME top-bar companion for Claude Code. It wil
 
 Current scope: **hook capture, safe hook installation, and a GNOME Shell top-bar indicator**. This repository contains a TypeScript CLI, a versioned JSON state snapshot, JSONL event history, and a GJS extension that watches the snapshot and shows each session's state, a health line, and desktop notifications. No database, server, auth, or progress percentages.
 
+The repository is laid out by contract, agent, and OS (ADR 0007): `contract/` holds the language-neutral schemas and fixtures, `src/core/` the agent- and OS-neutral capture and presentation, `agents/claude-code/` everything specific to Claude Code, and `os/linux/` the GNOME Shell extension. If you want to add support for another coding agent, start with [`agents/README.md`](agents/README.md).
+
 ## Setup
 
 Requires Node.js 22+ and pnpm 11.
@@ -42,7 +44,7 @@ echo '{"session_id":"test-1","cwd":"/home/me/project","reason":"prompt_input_exi
 
 To isolate manual tests, run `export AGENTBAR_STATE_DIR="$(mktemp -d /tmp/agentbar-manual.XXXXXX)"` first, then inspect `"$AGENTBAR_STATE_DIR/state.json"` and `"$AGENTBAR_STATE_DIR/events.jsonl"`. Run `unset AGENTBAR_STATE_DIR` to restore the default. Automated tests always use temporary directories.
 
-Without pnpm, the equivalent receiver command is `node /absolute/path/to/agentbar/dist/hooks/claude-hook.js --event pre_tool_use`. The package also declares the `agentbar` and `agentbar-hook` executable entry points for package linking; no global installation is needed.
+Without pnpm, the equivalent receiver command is `node /absolute/path/to/agentbar/dist/agents/claude-code/hooks/claude-hook.js --event pre_tool_use`. The package also declares the `agentbar` and `agentbar-hook` executable entry points for package linking; no global installation is needed.
 
 ## Configure Claude Code
 
@@ -65,7 +67,7 @@ With `--apply`:
 
 Restart Claude Code after applying either command.
 
-`examples/claude-hooks-settings.example.json` is a portable template; replace its placeholder path or use the helper. Config structure and event names follow the [official Claude Code hook reference](https://code.claude.com/docs/en/hooks). It registers the seven matching lifecycle hooks and maps `PostToolUseFailure` and `StopFailure` to AgentBar's `error`; there is no invented Claude hook named `Error`. Older Claude versions may lack `StopFailure`.
+`agents/claude-code/settings.example.json` is a portable template; replace its placeholder path or use the helper. Config structure and event names follow the [official Claude Code hook reference](https://code.claude.com/docs/en/hooks). It registers the seven matching lifecycle hooks and maps `PostToolUseFailure` and `StopFailure` to AgentBar's `error`; there is no invented Claude hook named `Error`. Older Claude versions may lack `StopFailure`.
 
 ## GNOME Shell extension (development)
 

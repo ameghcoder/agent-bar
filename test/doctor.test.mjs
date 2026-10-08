@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 
-const cli = fileURLToPath(new URL('../dist/cli/index.js', import.meta.url));
+const cli = fileURLToPath(new URL('../dist/src/cli/index.js', import.meta.url));
 
 async function temporaryHome(t) {
   const home = await mkdtemp(join(tmpdir(), 'agentbar-doctor-'));

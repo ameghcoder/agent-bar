@@ -37,10 +37,10 @@ test('extension.js is valid ESM that only imports GNOME Shell resources and gi m
 test('the build copies the portable core modules into the extension so it can load them without dist/ or node_modules', async () => {
   for (const name of ['vocabulary.js', 'snapshot.js', 'presentation.js']) {
     const [fromDist, fromExtension] = await Promise.all([
-      readFile(new URL(`dist/core/${name}`, root), 'utf8'),
+      readFile(new URL(`dist/src/core/${name}`, root), 'utf8'),
       readFile(new URL(`os/linux/gnome-shell/lib/${name}`, root), 'utf8'),
     ]);
-    assert.equal(fromExtension, fromDist, `os/linux/gnome-shell/lib/${name} must be an exact copy of dist/core/${name}`);
+    assert.equal(fromExtension, fromDist, `os/linux/gnome-shell/lib/${name} must be an exact copy of dist/src/core/${name}`);
   }
 });
 

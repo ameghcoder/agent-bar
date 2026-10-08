@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 import { Command } from 'commander';
-import { applyInstall, applyUninstall, defaultSettingsPath, type ApplyOptions, type ApplyReport } from '../install/apply.js';
+import { applyInstall, applyUninstall, defaultSettingsPath, type ApplyOptions, type ApplyReport } from '../../agents/claude-code/install/apply.js';
 import { formatReport, runDoctor } from '../doctor/doctor.js';
-import { createHooksConfig, receiverCommand } from '../scripts/install-claude-hooks.js';
-import { version } from '../version.js';
+import { createHooksConfig, receiverCommand } from '../../agents/claude-code/install/hooks-config.js';
+import { version } from '../core/version.js';
 
 const minimumNode = '22.12.0';
 

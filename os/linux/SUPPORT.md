@@ -16,7 +16,7 @@ someone runs the test plan there and records the result in this table.
 ## What lives here
 
 - `gnome-shell/`: the GNOME Shell extension (GJS). `lib/` holds three modules
-  copied from `dist/core/` by `pnpm build`, plus the hand-written
+  copied from `dist/src/core/` by `pnpm build`, plus the hand-written
   `state-reader.js`.
 - `scripts/`: the build step that copies those modules, and the development
   helper (`extension-dev.sh install|enable|logs|pack|devkit`).

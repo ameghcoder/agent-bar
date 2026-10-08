@@ -7,7 +7,7 @@ The GNOME Shell **extension** renders it. **Installation** and **doctor** exist
 so the first two can be wired up and checked safely.
 
 ```
-Claude hook -> src/hooks -> src/core/events -> src/core/state -> state.json
+Claude hook -> agents/claude-code (translate) -> src/core/state -> state.json
                                                                     |
                                        src/core/snapshot (parse) <--+
                                                   |
@@ -18,6 +18,21 @@ Claude hook -> src/hooks -> src/core/events -> src/core/state -> state.json
 
 Data flows one way. Nothing downstream of `state.json` can affect capture, and
 capture never waits on the extension.
+
+## Where code lives (ADR 0007)
+
+| Folder | Owns | May import |
+|---|---|---|
+| `contract/` | JSON Schemas, presentation rules as data, fixtures | nothing |
+| `src/core/` | capture (lock, timestamp, retention, atomic write), snapshot parsing, presentation, paths, version | only `src/core` |
+| `agents/claude-code/` | the receiver, payload translation, compaction carry-over, project root, hook install/merge | `src/core`, itself |
+| `os/linux/` | the GNOME Shell extension and its scripts | `src/core` (via the copied `lib/`), itself |
+| `src/doctor/`, `src/cli/` | the doctor runner and the `agentbar` commands, which compose the rest | anything |
+
+`test/layout.test.mjs` checks these rules on the real import statements.
+Capture in `src/core/state.ts` takes a `CaptureAdapter` (`normalize`,
+`reconcile`) as an argument, so core never imports an agent; the Claude
+adapter builds one with `claudeCodeCapture` in `agents/claude-code/translate.ts`.
 
 ## The contract
 
@@ -33,7 +48,7 @@ one `IndicatorView`. It is pure: same snapshot and same clock, same view. It
 holds every decision about what the user sees, so all of it is testable without
 GNOME Shell (`test/presentation.test.mjs`).
 
-It imports only *types*, so the compiled `dist/core/presentation.js` has no
+It imports only *types*, so the compiled `dist/src/core/presentation.js` has no
 imports at all and GJS can load the same file Node tests. A test enforces this.
 
 ### Status priority
@@ -180,7 +195,7 @@ compiles to zero imports at all. Both properties are asserted by tests, not
 left as convention, because the extension depends on them.
 
 `pnpm build` copies `vocabulary.js`, `snapshot.js`, and `presentation.js` from
-`dist/core/` into `os/linux/gnome-shell/lib/` (`os/linux/scripts/copy-extension-lib.mjs`). The
+`dist/src/core/` into `os/linux/gnome-shell/lib/` (`os/linux/scripts/copy-extension-lib.mjs`). The
 extension imports these exact compiled files - the same reader and
 presentation logic Node's tests exercise - with no `dist/` or `node_modules`
 dependency at runtime. `os/linux/gnome-shell/lib/state-reader.js` is hand-authored, not

@@ -1,8 +1,8 @@
 import { access } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
-import { generatedConfig } from '../install/apply.js';
+import { generatedConfig } from './apply.js';
 
-export { hookEvents } from '../install/merge.js';
+export { hookEvents } from './merge.js';
 
 export function shellQuote(value: string): string {
   return `'${value.replaceAll("'", "'\\''")}'`;

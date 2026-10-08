@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
-import { sessionRetentionMs, withoutExpiredSessions } from '../dist/core/snapshot.js';
-import { notificationsFor, presentSnapshot, statusIntent, statusLabel, statusPriority } from '../dist/core/presentation.js';
+import { sessionRetentionMs, withoutExpiredSessions } from '../dist/src/core/snapshot.js';
+import { notificationsFor, presentSnapshot, statusIntent, statusLabel, statusPriority } from '../dist/src/core/presentation.js';
 
 // Labels and intents come from CONTEXT.md's observable-status table and
 // ADR 0004: "Turn complete", never "Done"; unknown is never success.
@@ -249,7 +249,7 @@ test('sessions sharing a project name get a parent-directory hint; unique ones g
 });
 
 test('the compiled presentation model imports nothing, so the GJS extension can load it', async () => {
-  const compiled = await readFile(new URL('../dist/core/presentation.js', import.meta.url), 'utf8');
+  const compiled = await readFile(new URL('../dist/src/core/presentation.js', import.meta.url), 'utf8');
   assert.doesNotMatch(compiled, /^\s*(import|export .* from|const .* = require)\b/m);
 });
 

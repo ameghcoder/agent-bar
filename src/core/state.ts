@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { appendFile, mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import lockfile from 'proper-lockfile';
-import { carryActiveStatus, isRecord, normalizeEvent, projectRootFromEnv, type ClaudeEvent, type EventType, type JsonObject } from './events.js';
+import { isRecord, type ClaudeEvent } from './events.js';
 import { getPaths } from './paths.js';
 import { parseSnapshot, schemaVersion, withoutExpiredSessions, type AgentBarState, type SessionState } from './snapshot.js';
 
@@ -20,7 +20,16 @@ async function readState(path: string): Promise<AgentBarState> {
   throw new Error(`Invalid state file at ${path}: ${result.message} Back it up and move it aside before retrying; existing data was not overwritten.`);
 }
 
-export async function captureEvent(type: EventType, raw: JsonObject): Promise<ClaudeEvent> {
+// What an agent adapter hands capture (ADR 0007): core never imports an
+// adapter. Both run while the write lock is held, so `normalize` stamps the
+// event in commit order, and `reconcile` sees the session's previous state
+// and returns the event to record (status carry-over, a stable project).
+export interface CaptureAdapter {
+  normalize(): ClaudeEvent;
+  reconcile(event: ClaudeEvent, previous: SessionState | undefined): ClaudeEvent;
+}
+
+export async function captureEvent(adapter: CaptureAdapter): Promise<ClaudeEvent> {
   const paths = getPaths();
   await mkdir(paths.directory, { recursive: true, mode: 0o700 });
   // Separate hook processes share this lock. Heartbeats allow recovery after a crash.
@@ -34,17 +43,14 @@ export async function captureEvent(type: EventType, raw: JsonObject): Promise<Cl
   try {
     const state = await readState(paths.state);
     // Timestamp in commit order, after acquiring the lock.
-    const normalized = normalizeEvent(type, raw);
+    const normalized = adapter.normalize();
     const index = state.sessions.findIndex((session) => session.sessionId === normalized.sessionId);
     const previous = state.sessions[index];
-    const event = carryActiveStatus(normalized, previous);
-    // Without CLAUDE_PROJECT_DIR the event's path is only `cwd`, which drifts
-    // into subdirectories, so the session keeps the path it was first seen with.
-    const project = previous && projectRootFromEnv() === undefined ? previous : event;
+    const event = adapter.reconcile(normalized, previous);
     const session: SessionState = {
       sessionId: event.sessionId,
-      projectName: project.projectName,
-      projectPath: project.projectPath,
+      projectName: event.projectName,
+      projectPath: event.projectPath,
       source: event.source,
       status: event.status,
       lastEventType: event.eventType,
