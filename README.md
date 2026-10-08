@@ -2,7 +2,7 @@
 
 AgentBar is a local-first Ubuntu/GNOME top-bar companion for Claude Code. It will show observable activity while you work in another window.
 
-Current scope: **hook capture, safe hook installation, and a minimal GNOME Shell indicator**. This repository contains a TypeScript CLI, a versioned JSON state snapshot, JSONL event history, and a GJS extension that does not yet read state. No database, server, auth, or progress percentages.
+Current scope: **hook capture, safe hook installation, and a GNOME Shell top-bar indicator**. This repository contains a TypeScript CLI, a versioned JSON state snapshot, JSONL event history, and a GJS extension that watches the snapshot and shows each session's state, a health line, and desktop notifications. No database, server, auth, or progress percentages.
 
 ## Setup
 

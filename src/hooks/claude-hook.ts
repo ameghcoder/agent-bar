@@ -2,6 +2,7 @@
 import { Command, InvalidArgumentError, Option } from 'commander';
 import { eventTypes, isEventType, parseInput } from '../core/events.js';
 import { captureEvent } from '../core/state.js';
+import { version } from '../version.js';
 
 async function readStdin(): Promise<string> {
   if (process.stdin.isTTY) return '';
@@ -26,7 +27,7 @@ function parseEvent(value: string) {
 const program = new Command()
   .name('agentbar-hook')
   .description('Capture a Claude Code hook event from JSON on stdin')
-  .version('0.1.0')
+  .version(version)
   .addOption(new Option('-e, --event <type>', 'normalized AgentBar event type').argParser(parseEvent).makeOptionMandatory())
   .addHelpText('after', `\nSupported events:\n  ${eventTypes.join('\n  ')}\n\nInput:\n  A JSON object on stdin. Empty input is allowed.`)
   .showHelpAfterError()

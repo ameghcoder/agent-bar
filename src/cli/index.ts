@@ -3,8 +3,8 @@ import { Command } from 'commander';
 import { applyInstall, applyUninstall, defaultSettingsPath, type ApplyOptions, type ApplyReport } from '../install/apply.js';
 import { formatReport, runDoctor } from '../doctor/doctor.js';
 import { createHooksConfig, receiverCommand } from '../scripts/install-claude-hooks.js';
+import { version } from '../version.js';
 
-const version = '0.1.0';
 const minimumNode = '22.12.0';
 
 interface HookCommandOptions { apply: boolean; settings?: string; backupDir?: string }
