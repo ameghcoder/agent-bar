@@ -1,199 +1,181 @@
 # AgentBar
 
-AgentBar is a local-first Ubuntu/GNOME top-bar companion for Claude Code. It will show observable activity while you work in another window.
+AgentBar shows what your Claude Code sessions are doing in the GNOME top bar,
+so you can work in another window and still know when Claude needs you.
 
-Current scope: **hook capture, safe hook installation, and a GNOME Shell top-bar indicator**. This repository contains a TypeScript CLI, a versioned JSON state snapshot, JSONL event history, and a GJS extension that watches the snapshot and shows each session's state, a health line, and desktop notifications. No database, server, auth, or progress percentages.
-
-The repository is laid out by contract, agent, and OS (ADR 0007): `contract/` holds the language-neutral schemas and fixtures, `src/core/` the agent- and OS-neutral capture and presentation, `agents/claude-code/` everything specific to Claude Code, and `os/linux/` the GNOME Shell extension. If you want to add support for another coding agent, start with [`agents/README.md`](agents/README.md).
-
-## Setup
-
-Requires Node.js 22+ and pnpm 11.
-
-```sh
-pnpm install
-pnpm build
-pnpm test
+```
+agent-bar - Working - just now +1
 ```
 
-Build again after changing TypeScript. `pnpm typecheck` checks types without emitting files. Commander provides the command and option parsing. `proper-lockfile` serializes writes from simultaneous hook processes and recovers abandoned locks.
+- **Top bar:** the session that matters most, its state, and how long ago it
+  last did something, plus `+N` for other sessions that are working.
+- **Menu:** every session with its project, state, and time, plus a health
+  line that says whether events are arriving. Click a session to bring its
+  terminal or editor window to the front.
+- **Notifications:** one banner when Claude needs permission, is waiting for
+  you, finishes a turn, or a turn fails. Nothing for routine work.
+- **Honest states:** a session with no news for 10 minutes says "No updates"
+  instead of guessing, and a closed Claude terminal reads "Ended". AgentBar
+  never shows a progress percentage, because Claude Code does not report one.
 
-## Capture an event
+Everything stays on your machine. No account, no server, no telemetry.
 
-From this repository:
+**Status: beta (0.1.0).**
 
-```sh
-echo '{"session_id":"test-1","cwd":"/home/me/project"}' | pnpm agentbar-hook --event session_start
-echo '{"tool_name":"Edit","cwd":"/home/me/project"}' | pnpm agentbar-hook --event pre_tool_use
-echo '{"message":"Claude needs permission","cwd":"/home/me/project"}' | pnpm agentbar-hook --event permission_request
+## What you need
 
-cat ~/.local/state/agentbar/state.json
-cat ~/.local/state/agentbar/events.jsonl
-```
-
-These exact examples produce two session rows: `test-1` and an `unknown:<project hash>` fallback for the two inputs without `session_id`. AgentBar never guesses which named session an incomplete event belongs to. Missing IDs in the same project share that fallback; different projects get different fallbacks. Claude's regular hook payload includes a session ID. Include it on every fake event to exercise one session:
-
-```sh
-echo '{"session_id":"test-1","cwd":"/home/me/project","tool_name":"Edit"}' | pnpm agentbar-hook --event pre_tool_use
-echo '{"session_id":"test-1","cwd":"/home/me/project","message":"Claude needs permission"}' | pnpm agentbar-hook --event permission_request
-echo '{"session_id":"test-1","cwd":"/home/me/project","notification_type":"idle_prompt"}' | pnpm agentbar-hook --event notification
-echo '{"session_id":"test-1","cwd":"/home/me/project"}' | pnpm agentbar-hook --event stop
-echo '{"session_id":"test-1","cwd":"/home/me/project","error":"Example tool failure"}' | pnpm agentbar-hook --event error
-echo '{"session_id":"test-1","cwd":"/home/me/project","reason":"prompt_input_exit"}' | pnpm agentbar-hook --event session_end
-```
-
-To isolate manual tests, run `export AGENTBAR_STATE_DIR="$(mktemp -d /tmp/agentbar-manual.XXXXXX)"` first, then inspect `"$AGENTBAR_STATE_DIR/state.json"` and `"$AGENTBAR_STATE_DIR/events.jsonl"`. Run `unset AGENTBAR_STATE_DIR` to restore the default. Automated tests always use temporary directories.
-
-Without pnpm, the equivalent receiver command is `node /absolute/path/to/agentbar/dist/agents/claude-code/hooks/claude-hook.js --event pre_tool_use`. The package also declares the `agentbar` and `agentbar-hook` executable entry points for package linking; no global installation is needed.
-
-## Configure Claude Code
-
-```sh
-pnpm agentbar install-hooks            # preview: prints the hooks JSON, changes nothing
-pnpm agentbar install-hooks --apply    # merge into ~/.claude/settings.json after a backup
-pnpm agentbar uninstall-hooks          # preview removal
-pnpm agentbar uninstall-hooks --apply  # remove AgentBar handlers only
-```
-
-Without `--apply` nothing is written: the generated hooks JSON goes to stdout and a per-event summary of what would change goes to stderr. Generated commands use quoted absolute paths to the current Node executable and built receiver, so hooks work from other projects without pnpm on Claude's PATH. Regenerate and re-apply if you move the repository or Node installation.
-
-With `--apply`:
-
-- The settings file is `$CLAUDE_CONFIG_DIR/settings.json` if that variable is set, else `~/.claude/settings.json`. Override with `--settings <path>` (for example `.claude/settings.local.json` for one project).
-- The current file must parse as a JSON object with a well-formed `hooks` section, or nothing is changed.
-- If the file exists it is first copied to `<name>.agentbar-backup-<timestamp>-<id>` (mode `0600`) next to it, or under `--backup-dir <dir>`. A backup failure aborts the apply.
-- The new content is written to a temporary file and renamed into place. A new file is `0600`; an existing file keeps its mode minus any group/world write bits.
-- Unrelated settings, other hooks, and matcher groups are preserved. AgentBar adds one handler per Claude event and recognises its own handlers by their exact command shape, so re-applying is a no-op, a handler left pointing at a moved checkout or replaced Node binary is updated in place, and uninstall never removes a hook it did not create. A symlinked settings file is followed: the link is kept and the target is what changes. Containers emptied by an uninstall are pruned; ones that were already empty are left alone.
-
-Restart Claude Code after applying either command.
-
-`agents/claude-code/settings.example.json` is a portable template; replace its placeholder path or use the helper. Config structure and event names follow the [official Claude Code hook reference](https://code.claude.com/docs/en/hooks). It registers the seven matching lifecycle hooks and maps `PostToolUseFailure` and `StopFailure` to AgentBar's `error`; there is no invented Claude hook named `Error`. Only `StopFailure` (a failed turn) reads as Failed: a failed tool call is routine, Claude carries on, so the session stays Working. A question from Claude (`AskUserQuestion`, which arrives as a permission request) reads as Waiting for you. Older Claude versions may lack `StopFailure`.
-
-## GNOME Shell extension (development)
-
-The extension lives in `os/linux/gnome-shell/` (UUID `agentbar@ameghcoder.github.io`) and targets **GNOME Shell 50 on Ubuntu 26.04 LTS (Wayland)**, the only environment tested so far. It is a plain GNOME 45+ ESM extension: `metadata.json`, `extension.js`, `stylesheet.css`, plus a generated `lib/` (below).
-
-`pnpm build` copies the portable, `node:`-free core modules (`vocabulary.js`, `snapshot.js`, `presentation.js`) into `lib/`, so the extension reads live state through the exact same reader and presentation logic Node's tests run, with no `dist/` or `node_modules` dependency at runtime. `lib/state-reader.js` is hand-authored (not generated): a Shell-independent `StateWatcher` (only `gi://GLib` and `gi://Gio`) that watches the state directory, debounces real filesystem noise into one re-read, and falls back to a periodic timer both to catch missed events and to re-attach the directory monitor if the state directory did not exist yet when watching began. Run `pnpm build` before `install`; the three copied modules in `lib/` are generated and gitignored, while `state-reader.js` is tracked.
-
-```sh
-pnpm build                          # also refreshes os/linux/gnome-shell/lib/ - do this after any core change
-os/linux/scripts/extension-dev.sh install    # symlink os/linux/gnome-shell/ into ~/.local/share/gnome-shell/extensions/
-os/linux/scripts/extension-dev.sh enable     # or disable / status
-os/linux/scripts/extension-dev.sh logs       # follow GNOME Shell's journal for AgentBar lines and JS errors
-os/linux/scripts/extension-dev.sh pack DIR   # validate metadata and build a zip, including its lib/
-os/linux/scripts/extension-dev.sh devkit     # nested GNOME Shell for iteration (needs the mutter-dev-bin package for a window)
-```
-
-On Wayland a newly installed extension is picked up at the next login, and code changes to an already loaded extension need a logout/login or a nested session; `gnome-extensions enable`/`disable` themselves work live. `pnpm test` checks the metadata, that `extension.js` and `lib/state-reader.js` parse and import only `gi://`, `resource:///org/gnome/shell/`, or their own portable siblings, that the generated `lib/` files are exact copies of `dist/core/` and stay untouched by hand edits, and that packing actually includes `lib/` (`gnome-extensions pack` does not bundle subdirectories without `--extra-source`, which the script passes). It also drives the real `StateWatcher` under the real `gjs` runtime against real atomic renames of a temporary state file - not a mock - covering missing/valid/malformed/future-schema/recovered states and notification dedupe in one scripted run.
-
-Clicking a session in the menu brings its terminal or editor window to the front when AgentBar can name exactly one window for it (Linux, Claude Code passing `CLAUDE_PID`). With several windows of the same terminal or VS Code, it relies on the project name appearing in the window title; when it cannot tell, the row is not clickable and nothing is focused. A specific tab cannot be selected.
-
-By default the extension reads `~/.local/state/agentbar/state.json`, same as the CLI. Setting `AGENTBAR_STATE_DIR` before GNOME Shell starts points it at another directory, for development.
-
-## Install the package
-
-On Ubuntu 26.04 (GNOME Shell 50):
-
-```sh
-sudo apt install ./agentbar_<version>_all.deb   # also installs nodejs if missing
-agentbar install-hooks                          # preview what changes in ~/.claude/settings.json
-agentbar install-hooks --apply                  # apply, after a backup
-```
-
-Restart Claude Code, then log out and back in. GNOME on Wayland only finds a
-newly installed extension at login, so before that `gnome-extensions` reports
-that it does not exist. Then enable it:
-
-```sh
-gnome-extensions enable agentbar@ameghcoder.github.io
-agentbar doctor                                  # every check should pass
-```
-
-To remove: `agentbar uninstall-hooks --apply`, then `sudo apt remove agentbar`.
-Your AgentBar state and Claude settings are left in place.
-
-## Build the package
-
-```sh
-pnpm package:deb                                   # writes dist/package/agentbar_<version>_all.deb
-dpkg-deb --info dist/package/agentbar_*_all.deb    # metadata
-dpkg-deb --contents dist/package/agentbar_*_all.deb
-```
-
-The package installs `/usr/bin/agentbar`, `/usr/bin/agentbar-hook`, `/usr/lib/agentbar/`, and the extension under `/usr/share/gnome-shell/extensions/agentbar@ameghcoder.github.io/`. It depends on Ubuntu's `nodejs` (22.12 or newer) and its commands run `/usr/bin/node`, never another Node on your PATH, so the hooks it installs keep working whatever version managers you use. It has no install or removal scripts: it never touches your home directory, Claude settings, or AgentBar state. After installing, run `agentbar install-hooks --apply`, restart Claude Code, log out and in, and enable the extension. `apt remove agentbar` leaves your state and Claude settings alone; remove the hooks first with `agentbar uninstall-hooks --apply`. The maintainer field comes from `$DEB_MAINTAINER`, else your git identity; two builds of one commit are byte-identical (`SOURCE_DATE_EPOCH`, else the last commit's time). With `lintian` installed (`sudo apt install lintian`), `pnpm test` also runs `lintian --pedantic` on the package and expects no output; the two deliberate overrides are explained in `os/linux/packaging/deb/lintian-overrides`. Man pages: `man agentbar`, `man agentbar-hook`.
-
-## Diagnose
-
-```sh
-pnpm agentbar doctor
-```
-
-Read-only. Prints one `PASS`, `WARN`, or `FAIL` line per check (AgentBar and Node versions, state directory and snapshot, Claude settings and AgentBar hooks, GNOME Shell, display session, extensions tool) and exits 1 if a required check fails. Missing optional tools are warnings. Paths are shown relative to `~`; the output never includes hook payloads, session or project names, or settings content, so it is safe to paste into a bug report. `--settings <path>` points it at a different settings file.
-
-## Observable state
-
-| AgentBar event | Status |
+| | Supported |
 | --- | --- |
-| `session_start` | `idle` for `source` `startup`, `clear`, `resume`, or missing; for `compact` (auto-compaction, which can happen mid-turn) an active status (`running`, `waiting`, `permission_required`) on the same session is kept |
-| `pre_tool_use` | `running` (tool about to run) |
-| `post_tool_use` | `running` (tool finished; turn may continue) |
-| `notification` | `permission_required` for `permission_prompt`; `waiting` for `idle_prompt`, elicitation dialogs, or `agent_needs_input`; otherwise `unknown` |
-| `permission_request` | `permission_required`; `waiting` when the tool is `AskUserQuestion` (Claude is asking you a question, not asking permission) |
-| `stop` | `completed` (response ended) |
-| `session_end` | `idle` (session ended) |
-| `error` | `running` for `PostToolUseFailure` (a failed tool call is routine; Claude carries on); `failed` for `StopFailure` (the turn failed) or an error with no hook name |
+| OS | Ubuntu 26.04 LTS |
+| Desktop | GNOME Shell 50, Wayland (the Ubuntu default) |
+| Claude Code | 2.1.29x tested; any version with hooks should work |
+| Node.js | Ubuntu's `nodejs` package, installed for you by `apt` |
 
-`lastMessage` is a presentation string: the first non-blank line of the source text, whitespace collapsed, capped at 120 characters. A raw `message` field replaces the generated text only for `notification` and `permission_request`, the events where Claude authors a user-facing message; on every other event it is ignored. For `error`, the first line of `error` or `error_details` is used and the full text stays in `raw` only.
+Other distributions with GNOME Shell 50 may work but are untested. The exact
+machines AgentBar was tested on are listed in
+[os/linux/SUPPORT.md](os/linux/SUPPORT.md).
 
-Status describes the last captured event, not a guarantee that the whole task succeeded. A stop may be followed by another turn. Unknown notifications do not infer activity from message text.
+## Install
 
-Known limitations, stated plainly:
+1. **Download** `agentbar_<version>_all.deb` from the
+   [Releases page](https://github.com/ameghcoder/agent-bar/releases).
 
-- Nothing is captured between your prompt and Claude's first tool call, so a session that is only thinking still reads as its previous state.
-- Permission decisions themselves (allowed or denied) are not observed; the next event replaces the permission state.
-- Parallel tool calls are not aggregated; the last event wins.
-- A Claude process that exits without `SessionEnd` (closed terminal, crash, `kill`) is detected only on Linux and only when Claude Code passes `CLAUDE_PID` to hooks (ADR 0008); the session then reads "Ended" within about 10 seconds. Without it, the session goes stale after 10 minutes and expires after 24 hours.
-- Every mapping above was observed live on Claude Code 2.1.295 except `StopFailure`, which has not occurred in a live session yet and is covered by synthetic tests only.
-- A failed tool call keeps its error's first line as the session's last message, but never in a notification or the top bar.
+2. **Install the package.** This also installs `nodejs` if it is missing.
 
-The snapshot contains `schemaVersion`; history records do not. Every history record has `id`, `timestamp`, `source`, `projectPath`, `projectName`, `sessionId`, `eventType`, `status`, `message`, the original parsed `raw` object, and, when Claude Code passed `CLAUDE_PID`, `agentProcess` (`pid` and its `/proc` start time). IDs are UUIDs; timestamps are local capture times in UTC. Missing `cwd` falls back to the receiver's working directory.
+   ```sh
+   sudo apt install ./agentbar_<version>_all.deb
+   ```
 
-## Presentation model
+3. **Connect Claude Code.** The first command only shows what would change;
+   the second applies it, after saving a backup of your settings next to them.
+   Your other settings and hooks are kept.
 
-`src/core/presentation.ts` turns a parsed snapshot plus the current time into
-one `IndicatorView`: an aggregate status for the top bar, ordered session rows
-for the menu, and the notification decisions. It is pure and has no imports, so
-the same compiled file runs under Node's tests and loads in GJS.
+   ```sh
+   agentbar install-hooks
+   agentbar install-hooks --apply
+   ```
 
-Status priority, menu ordering, the staleness threshold and its clock-skew
-behaviour, notification dedupe, and the fields deliberately kept out of the view
-are specified in [`docs/architecture.md`](docs/architecture.md).
+4. **Restart Claude Code**, so it loads the new hooks.
 
-## Storage and failure handling
+5. **Log out and log back in.** GNOME only discovers a newly installed
+   extension at login. Until then, `gnome-extensions` reports that the
+   extension "does not exist". That is expected, not an error.
 
-Default files are `~/.local/state/agentbar/state.json` and `~/.local/state/agentbar/events.jsonl`. `AGENTBAR_STATE_DIR` can override the directory with an absolute path; `XDG_STATE_HOME` is not used. Folders are created automatically. New state directories use mode `0700`; new data files use `0600`.
+6. **Turn the extension on** (or use the Extensions app):
 
-The snapshot contains integer `schemaVersion` (currently `1`), `updatedAt`, and `sessions`. Each session stores `sessionId`, `projectName`, `projectPath`, `source`, `status`, `lastEventType`, `lastMessage`, `startedAt`, and `lastSeenAt`. `startedAt` means first observation, since capture can begin mid-session. Named session IDs identify rows even when the working directory changes. A session with no event for 24 hours (`sessionRetentionMs`, in `src/core/snapshot.ts`) is dropped from `state.json` on the next capture by any session, and the extension ignores it even before then. `events.jsonl` is never pruned and still grows until you archive or remove it.
+   ```sh
+   gnome-extensions enable agentbar@ameghcoder.github.io
+   ```
 
-### Snapshot compatibility
+7. **Check everything.** Every line should say `PASS`:
 
-`src/core/snapshot.ts` exports `parseSnapshot(text)`, the one validator for the state contract. It never throws; it returns `{ ok: true, state, legacy }` or `{ ok: false, reason, message }` with `reason` one of `malformed_json`, `invalid_shape`, or `unsupported_version`. Readers such as the GNOME extension must treat every failure as "state unavailable", never as success or failure of a session.
+   ```sh
+   agentbar doctor
+   ```
 
-- A snapshot without `schemaVersion` (the pre-versioned beta shape) parses as version 1 with `legacy: true`; the next hook write upgrades the file in place.
-- A snapshot whose `schemaVersion` is anything other than the integer `1` is `unsupported_version`. The hook exits 1 and leaves the file untouched so a newer writer's data is never clobbered.
-- Adding a status, event type, or required field is a contract change and bumps `schemaVersion`.
+Use Claude Code as usual. The top bar updates within a second of each event.
 
-Fixtures for each case live in `test/fixtures/` (`snapshot-v1.json`, `snapshot-legacy.json`, `snapshot-future.json`, `snapshot-malformed.txt`) so a non-Node reader can test against the same inputs.
+### When does each step take effect?
 
-Writes use a shared lock, a temporary file, and an atomic rename. The future reader should reopen the snapshot after changes, and watch its directory because the file is replaced. History is appended before the snapshot is replaced. These are two files, not a transaction: a crash between writes can leave history ahead of state, and there is no power-loss durability guarantee or automatic replay yet. Locks abandoned by crashed writers become eligible for recovery after 10 seconds; normal lock contention retries for roughly 12–18 seconds.
+| You did | Takes effect |
+| --- | --- |
+| Installed or upgraded the package | Commands: immediately. Extension: after you log out and in |
+| Ran `agentbar install-hooks --apply` | After you restart Claude Code |
+| Enabled the extension | Immediately (once GNOME has found it at login) |
 
-Blank input is accepted as `{}`; non-object JSON, malformed JSON, unsupported arguments, and input over 10 MiB produce a useful stderr message and exit code 1. Success emits no stdout and exit code 0. Capture errors do not use Claude's blocking exit code 2 or emit permission decisions. Invalid existing state is preserved and reported; back it up and move it aside before retrying.
+## Upgrade
 
-Raw payloads can include tool inputs, outputs, and local paths. All storage stays local; history grows until you archive or remove it. No transcript files are read and no network calls are made at runtime.
+Install the newer `.deb` the same way, then log out and in so GNOME loads the
+new extension code:
 
-## Day 2
+```sh
+sudo apt install ./agentbar_<new-version>_all.deb
+agentbar install-hooks --apply   # usually "Nothing to change"; safe to run
+```
 
-Validate the hooks against a real Claude Code session, including permission prompts, failure recovery, and two simultaneous projects. Add prompt-submission capture and decide how to represent stale sessions and parallel activity. Then build the smallest GNOME reader: monitor the state directory, reopen the snapshot, show an aggregate icon, and list each session's project, status, and last message in a menu. Keep capture independent of the extension.
+Reinstalling a file with the *same* version number needs
+`sudo apt install --reinstall ./agentbar_<version>_all.deb`.
+
+## Uninstall
+
+```sh
+agentbar uninstall-hooks --apply   # removes only AgentBar's hooks from Claude Code
+sudo apt remove agentbar
+```
+
+Then restart Claude Code. Removing the package never touches your Claude
+settings or AgentBar's data in `~/.local/state/agentbar/`; delete that folder
+yourself if you want it gone.
+
+## What the top bar says
+
+| Text | Meaning |
+| --- | --- |
+| `Working` | Claude is running tools. A failed command is routine, so it stays Working |
+| `Waiting for you` | Claude is waiting for your input or asked you a question |
+| `Permission needed` | Claude is asking to run something |
+| `Turn complete` | Claude finished responding. The project may not be done |
+| `Failed` | The turn itself failed, for example an API error |
+| `No updates` | No event for 10 minutes. Claude may still be busy with a long command; the menu says "Claude open" if its process is alive |
+| `Ended` | The Claude process is gone (terminal closed, crash) |
+| `AgentBar - No sessions` | Nothing captured yet, or every session is older than 24 hours |
+
+## Troubleshooting
+
+| Problem | Fix |
+| --- | --- |
+| `gnome-extensions` says the extension does not exist | Log out and back in once after installing |
+| The top bar never changes | Run `agentbar doctor`. If "Claude hooks" fails, run `agentbar install-hooks --apply` and restart Claude Code |
+| A session stays "No updates" | Normal during a long command. If Claude really closed, it turns "Ended" within about 10 seconds |
+| The menu says "State unavailable" | `agentbar doctor` names the problem with the state file. AgentBar never overwrites a file it cannot read |
+| Clicking a session does nothing | AgentBar only brings a window forward when it is sure which one. With several terminal windows it needs the project name in the window title |
+
+`agentbar doctor` output contains no project names, prompts, or settings
+content, so it is safe to paste into a bug report.
+
+## Privacy
+
+- AgentBar reads only what Claude Code passes to its hooks, plus the small
+  `/proc/<pid>/stat` file of the Claude process, to see whether it is still
+  running.
+- It never reads your Claude transcripts.
+- The top bar and notifications show only project names and fixed state words,
+  never your prompts, commands, file contents, or paths.
+- Data is kept in `~/.local/state/agentbar/` (owner-only permissions).
+  Sessions disappear from it after 24 hours. The event history file
+  `events.jsonl` grows until you delete it.
+- No network access, ever.
+
+## Known limitations
+
+- Nothing is captured between your prompt and Claude's first tool call, so a
+  session that is only thinking still shows its previous state.
+- Whether you allowed or denied a permission is not observed; the next event
+  replaces the "Permission needed" state.
+- Parallel tool calls are not combined; the latest event wins.
+- Detecting a closed terminal ("Ended") needs Linux and a Claude Code that
+  passes its process ID to hooks (current versions do). Without it the session
+  goes "No updates" after 10 minutes and disappears after 24 hours.
+- Clicking a session brings its window forward but cannot pick a specific
+  terminal tab.
+- A failed turn (`StopFailure`) is mapped from Claude Code's documentation and
+  tests; it has not yet occurred in a live session.
+
+## For developers
+
+AgentBar is TypeScript (capture, CLI, presentation) plus a GJS GNOME Shell
+extension, connected only by a local JSON file.
+
+- [docs/how-it-works.md](docs/how-it-works.md): the whole flow, with diagrams.
+- [docs/development.md](docs/development.md): build, test, run the extension
+  from a checkout, and build the `.deb`.
+- [docs/architecture.md](docs/architecture.md): module boundaries and the exact
+  presentation rules.
+- [docs/adr/](docs/adr/): the decisions behind the design.
+- [docs/testing.md](docs/testing.md): the release check.
+- [contract/](contract/): the language-neutral data contract.
+- Adding support for another coding agent? Start with
+  [agents/README.md](agents/README.md).
 
 ## License
 
