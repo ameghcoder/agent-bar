@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: accepted
 ---
 
 # Record the agent's process and check that it is still running
@@ -60,3 +60,9 @@ reading any user content.
   ended and alive sessions.
 - A session that ends and is resumed in a new process becomes alive again on
   its next event, because every event overwrites `agentProcess`.
+
+## Acceptance (2026-10-09)
+
+Accepted by the project owner, including the wording "Ended" for a session
+whose process is gone and "Claude open" for a stale session whose process
+still runs.
