@@ -1,0 +1,234 @@
+{
+  "description": "One sanitized real hook payload per Claude Code hook kind, captured live with Claude Code 2.1.29x on 2026-10-09 (T401). Every value that could be personal (paths, commands, tool input and output, ids, error text) is replaced; field names and semantic values are real.",
+  "cases": [
+    {
+      "name": "Notification:idle_prompt",
+      "hookEvent": "Notification",
+      "eventType": "notification",
+      "payload": {
+        "session_id": "00000000-0000-4000-8000-000000000000",
+        "transcript_path": "/home/me/.claude/projects/project/session.jsonl",
+        "cwd": "/home/me/project",
+        "scratchpad_dir": "/tmp/scratchpad",
+        "prompt_id": "redacted-id",
+        "hook_event_name": "Notification",
+        "message": "Claude is waiting for your input",
+        "notification_type": "idle_prompt"
+      },
+      "expected": {
+        "status": "waiting"
+      }
+    },
+    {
+      "name": "Notification:permission_prompt",
+      "hookEvent": "Notification",
+      "eventType": "notification",
+      "payload": {
+        "session_id": "00000000-0000-4000-8000-000000000000",
+        "transcript_path": "/home/me/.claude/projects/project/session.jsonl",
+        "cwd": "/home/me/project",
+        "scratchpad_dir": "/tmp/scratchpad",
+        "prompt_id": "redacted-id",
+        "hook_event_name": "Notification",
+        "message": "Claude needs your permission to use Bash",
+        "notification_type": "permission_prompt"
+      },
+      "expected": {
+        "status": "permission_required"
+      }
+    },
+    {
+      "name": "PermissionRequest",
+      "hookEvent": "PermissionRequest",
+      "eventType": "permission_request",
+      "payload": {
+        "session_id": "00000000-0000-4000-8000-000000000000",
+        "transcript_path": "/home/me/.claude/projects/project/session.jsonl",
+        "cwd": "/home/me/project",
+        "scratchpad_dir": "/tmp/scratchpad",
+        "prompt_id": "redacted-id",
+        "permission_mode": "auto",
+        "effort": {
+          "level": "medium"
+        },
+        "hook_event_name": "PermissionRequest",
+        "tool_name": "AskUserQuestion",
+        "tool_input": {}
+      },
+      "expected": {
+        "status": "permission_required"
+      }
+    },
+    {
+      "name": "PostToolUse",
+      "hookEvent": "PostToolUse",
+      "eventType": "post_tool_use",
+      "payload": {
+        "session_id": "00000000-0000-4000-8000-000000000000",
+        "transcript_path": "/home/me/.claude/projects/project/session.jsonl",
+        "cwd": "/home/me/project",
+        "scratchpad_dir": "/tmp/scratchpad",
+        "prompt_id": "redacted-id",
+        "permission_mode": "auto",
+        "effort": {
+          "level": "high"
+        },
+        "hook_event_name": "PostToolUse",
+        "tool_name": "Bash",
+        "tool_input": {},
+        "tool_response": {},
+        "tool_use_id": "redacted-id",
+        "duration_ms": 1
+      },
+      "expected": {
+        "status": "running"
+      }
+    },
+    {
+      "name": "PostToolUseFailure",
+      "hookEvent": "PostToolUseFailure",
+      "eventType": "error",
+      "payload": {
+        "session_id": "00000000-0000-4000-8000-000000000000",
+        "transcript_path": "/home/me/.claude/projects/project/session.jsonl",
+        "cwd": "/home/me/project",
+        "scratchpad_dir": "/tmp/scratchpad",
+        "prompt_id": "redacted-id",
+        "permission_mode": "auto",
+        "effort": {
+          "level": "high"
+        },
+        "hook_event_name": "PostToolUseFailure",
+        "tool_name": "Bash",
+        "tool_input": {},
+        "tool_use_id": "redacted-id",
+        "error": "Exit code 1",
+        "is_interrupt": false,
+        "duration_ms": 1
+      },
+      "expected": {
+        "status": "failed"
+      }
+    },
+    {
+      "name": "PreToolUse",
+      "hookEvent": "PreToolUse",
+      "eventType": "pre_tool_use",
+      "payload": {
+        "session_id": "00000000-0000-4000-8000-000000000000",
+        "transcript_path": "/home/me/.claude/projects/project/session.jsonl",
+        "cwd": "/home/me/project",
+        "scratchpad_dir": "/tmp/scratchpad",
+        "prompt_id": "redacted-id",
+        "permission_mode": "auto",
+        "effort": {
+          "level": "high"
+        },
+        "hook_event_name": "PreToolUse",
+        "tool_name": "Bash",
+        "tool_input": {},
+        "tool_use_id": "redacted-id"
+      },
+      "expected": {
+        "status": "running"
+      }
+    },
+    {
+      "name": "SessionEnd",
+      "hookEvent": "SessionEnd",
+      "eventType": "session_end",
+      "payload": {
+        "session_id": "00000000-0000-4000-8000-000000000000",
+        "transcript_path": "/home/me/.claude/projects/project/session.jsonl",
+        "cwd": "/home/me/project",
+        "scratchpad_dir": "/tmp/scratchpad",
+        "prompt_id": "redacted-id",
+        "hook_event_name": "SessionEnd",
+        "reason": "prompt_input_exit"
+      },
+      "expected": {
+        "status": "idle"
+      }
+    },
+    {
+      "name": "SessionStart:compact",
+      "hookEvent": "SessionStart",
+      "eventType": "session_start",
+      "payload": {
+        "session_id": "00000000-0000-4000-8000-000000000000",
+        "transcript_path": "/home/me/.claude/projects/project/session.jsonl",
+        "cwd": "/home/me/project",
+        "scratchpad_dir": "/tmp/scratchpad",
+        "prompt_id": "redacted-id",
+        "hook_event_name": "SessionStart",
+        "source": "compact",
+        "model": "redacted"
+      },
+      "expected": {
+        "status": "idle",
+        "afterActivePrevious": "waiting"
+      }
+    },
+    {
+      "name": "SessionStart:resume",
+      "hookEvent": "SessionStart",
+      "eventType": "session_start",
+      "payload": {
+        "session_id": "00000000-0000-4000-8000-000000000000",
+        "transcript_path": "/home/me/.claude/projects/project/session.jsonl",
+        "cwd": "/home/me/project",
+        "scratchpad_dir": "/tmp/scratchpad",
+        "hook_event_name": "SessionStart",
+        "source": "resume",
+        "seconds_since_last_response": 0,
+        "context_tokens": 0,
+        "prompt_cache_likely_expired": false,
+        "estimated_cache_write_usd": 0
+      },
+      "expected": {
+        "status": "idle"
+      }
+    },
+    {
+      "name": "SessionStart:startup",
+      "hookEvent": "SessionStart",
+      "eventType": "session_start",
+      "payload": {
+        "session_id": "00000000-0000-4000-8000-000000000000",
+        "transcript_path": "/home/me/.claude/projects/project/session.jsonl",
+        "cwd": "/home/me/project",
+        "scratchpad_dir": "/tmp/scratchpad",
+        "hook_event_name": "SessionStart",
+        "source": "startup",
+        "model": "redacted"
+      },
+      "expected": {
+        "status": "idle"
+      }
+    },
+    {
+      "name": "Stop",
+      "hookEvent": "Stop",
+      "eventType": "stop",
+      "payload": {
+        "session_id": "00000000-0000-4000-8000-000000000000",
+        "transcript_path": "/home/me/.claude/projects/project/session.jsonl",
+        "cwd": "/home/me/project",
+        "scratchpad_dir": "/tmp/scratchpad",
+        "prompt_id": "redacted-id",
+        "permission_mode": "auto",
+        "effort": {
+          "level": "high"
+        },
+        "hook_event_name": "Stop",
+        "stop_hook_active": false,
+        "last_assistant_message": "redacted",
+        "background_tasks": null,
+        "session_crons": null
+      },
+      "expected": {
+        "status": "completed"
+      }
+    }
+  ]
+}
