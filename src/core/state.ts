@@ -34,7 +34,14 @@ async function rotateHistory(path: string, incoming: number): Promise<void> {
     if (isRecord(error) && error.code === 'ENOENT') return;
     throw error;
   }
-  if (size > 0 && size + incoming > historyRotateBytes) await rename(path, `${path}.1`);
+  if (size === 0 || size + incoming <= historyRotateBytes) return;
+  try {
+    await rename(path, `${path}.1`);
+  } catch {
+    // Housekeeping only: if the old file cannot be moved aside (for example
+    // events.jsonl.1 is a directory), keep appending to the current file
+    // rather than failing the capture and freezing the top bar.
+  }
 }
 
 // What an agent adapter hands capture (ADR 0007): core never imports an

@@ -132,7 +132,7 @@ test('Commander provides CLI help and version output', async (t) => {
   assert.match(hookHelp.stdout, /Usage: agentbar-hook \[options\]/);
   assert.match(hookHelp.stdout, /permission_request/);
 
-  // The release version itself is pinned by test/version.test.mjs.
+  // test/version.test.mjs holds every version source equal to package.json.
   const { version } = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
   assert.equal((await run(directory, [cli, '--version'])).stdout.trim(), version);
   assert.equal((await run(directory, [receiver, '--version'])).stdout.trim(), version);
@@ -338,7 +338,7 @@ test('no usable CLAUDE_PID records no process', async (t) => {
 // T604: the history is capped. When the next line would take events.jsonl past
 // 10 MiB it becomes events.jsonl.1 (replacing an older one) and a new file
 // starts, so history never uses more than about twice the cap.
-const historyCap = 10 * 1024 * 1024;
+const { historyRotateBytes: historyCap } = await import('../dist/src/core/state.js');
 
 test('history below the cap is appended to in place', async (t) => {
   const directory = await temporaryDirectory(t);
@@ -360,4 +360,38 @@ test('history that would pass 10 MiB moves to events.jsonl.1 and a new file star
   assert.deepEqual(fresh.map((event) => event.eventType), ['pre_tool_use']);
   assert.equal((await stat(join(directory, 'events.jsonl'))).mode & 0o777, 0o600);
   assert.equal((await readState(directory)).sessions[0].status, 'running', 'state is unaffected');
+});
+
+// T605 (M6 review): rotation is housekeeping. If it fails, the event is still
+// recorded and state still updates, so the top bar never stalls on history.
+test('a history rotation that fails never stops capture', async (t) => {
+  const directory = await temporaryDirectory(t);
+  const { mkdir, truncate } = await import('node:fs/promises');
+  await hook(directory, 'stop', { session_id: 'a', cwd: '/home/me/p' });
+  await truncate(join(directory, 'events.jsonl'), historyCap - 10);
+  await mkdir(join(directory, 'events.jsonl.1', 'blocker'), { recursive: true });
+  const result = await hook(directory, 'pre_tool_use', { session_id: 'a', cwd: '/home/me/p', tool_name: 'Bash' });
+  assert.deepEqual(result, { code: 0, stdout: '', stderr: '' });
+  assert.equal((await readState(directory)).sessions[0].status, 'running');
+  assert.ok((await stat(join(directory, 'events.jsonl'))).size > historyCap - 10, 'the event was appended to the current file');
+});
+
+test('concurrent hooks across a rotation lose no event', async (t) => {
+  const directory = await temporaryDirectory(t);
+  const { truncate } = await import('node:fs/promises');
+  await hook(directory, 'stop', { session_id: 'seed', cwd: '/home/me/p' });
+  await truncate(join(directory, 'events.jsonl'), historyCap - 2000);
+  const results = await Promise.all(Array.from({ length: 16 }, (_, index) => hook(directory, 'pre_tool_use', {
+    session_id: `parallel-${index}`, cwd: `/tmp/project-${index}`, tool_name: 'Bash',
+  })));
+  for (const result of results) assert.equal(result.code, 0);
+  const lines = (await readFile(join(directory, 'events.jsonl'), 'utf8')).trim().split('\n')
+    .concat((await readFile(join(directory, 'events.jsonl.1'), 'latin1')).split('\n'))
+    // truncate() pads with NUL bytes, which the first appended line follows.
+    .map((line) => line.replace(/^\0+/, ''))
+    .filter((line) => line.startsWith('{'));
+  const ids = new Set(lines.map((line) => JSON.parse(line).sessionId));
+  for (let index = 0; index < 16; index += 1) assert.ok(ids.has(`parallel-${index}`), `parallel-${index}`);
+  assert.equal((await readState(directory)).sessions.length, 17);
+  assert.ok((await stat(join(directory, 'events.jsonl'))).size < historyCap, 'rotation happened once and the new file is small');
 });

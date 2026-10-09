@@ -27,7 +27,7 @@ Everything stays on your machine. No account, no server, no telemetry.
 | --- | --- |
 | OS | Ubuntu 26.04 LTS |
 | Desktop | GNOME Shell 50, Wayland (the Ubuntu default) |
-| Claude Code | 2.1.29x tested; any version with hooks should work |
+| Claude Code | 2.1.29x (tested). Other versions are untested |
 | Node.js | Ubuntu's `nodejs` package, installed for you by `apt` |
 
 Other distributions with GNOME Shell 50 may work but are untested. The exact
@@ -66,11 +66,15 @@ machines AgentBar was tested on are listed in
    gnome-extensions enable agentbar@ameghcoder.github.io
    ```
 
-7. **Check everything.** Every line should say `PASS`:
+7. **Check everything.**
 
    ```sh
    agentbar doctor
    ```
+
+   Every check should say `PASS`. Right after installing, before Claude has
+   run anything, "State directory" and "State snapshot" say `WARN` because no
+   event has arrived yet; they turn `PASS` after the first one.
 
 Use Claude Code as usual. The top bar updates within a second of each event.
 
@@ -162,8 +166,8 @@ Files AgentBar writes (all readable only by you):
 | File | What is in it |
 | --- | --- |
 | `~/.local/state/agentbar/state.json` | One entry per session from the last 24 hours: session ID, project name and path, state, a one-line last message, times, and the Claude process ID |
-| `~/.local/state/agentbar/events.jsonl` | Every hook event, **including the full payload Claude Code sent**: the commands Claude ran, tool input and output (which can include file contents), and the path to its transcript. Kept for diagnosis and never shown in the UI. When it reaches 10 MB it is renamed to `events.jsonl.1` (replacing the previous one) and a new file starts, so history uses at most about 20 MB |
-| `~/.claude/settings.json.agentbar-backup-<time>-<id>` | A copy of your Claude settings, made before every `install-hooks --apply` or `uninstall-hooks --apply` |
+| `~/.local/state/agentbar/events.jsonl` | Every hook event, **including the full payload Claude Code sent**: the commands Claude ran, tool input and output (which can include file contents), and the path to its transcript. Kept for diagnosis and never shown in the UI. When it reaches about 10 MB it is renamed to `events.jsonl.1` (replacing the previous one) and a new file starts, so history uses at most about 20 MB |
+| `~/.claude/settings.json.agentbar-backup-<time>-<id>` | A copy of your Claude settings, made by `install-hooks --apply` and `uninstall-hooks --apply` whenever a settings file already exists |
 
 Treat `events.jsonl` like your shell history: do not attach it to bug reports.
 Deleting it is safe at any time; AgentBar starts a new one.
