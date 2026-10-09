@@ -192,7 +192,8 @@ status. The writer drops it from `state.json` on every capture, and
 `StateWatcher` drops it before presenting, so an idle machine with a long-lived
 extension stays clean. `presentSnapshot` deliberately does not apply it: it
 stays pure and import-free (asserted by a test) and shows whatever it is given.
-A future or unreadable timestamp is kept, not expired. History is never pruned.
+A future or unreadable timestamp is kept, not expired. History is not pruned by retention; it is capped by rotation at 10 MiB
+(`historyRotateBytes`), keeping one previous file.
 
 ### Notifications
 

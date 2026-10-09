@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { appendFile, mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
+import { appendFile, mkdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises';
 import lockfile from 'proper-lockfile';
 import { isRecord, type ClaudeEvent } from './events.js';
 import { getPaths } from './paths.js';
@@ -18,6 +18,23 @@ async function readState(path: string): Promise<AgentBarState> {
   const result = parseSnapshot(contents);
   if (result.ok) return result.state;
   throw new Error(`Invalid state file at ${path}: ${result.message} Back it up and move it aside before retrying; existing data was not overwritten.`);
+}
+
+// History holds full hook payloads and would otherwise grow forever. When the
+// next line would take it past this size it becomes `events.jsonl.1`,
+// replacing the previous one, and a new file starts: at most about twice this
+// on disk. Runs under the write lock, so concurrent hooks cannot race it.
+export const historyRotateBytes = 10 * 1024 * 1024;
+
+async function rotateHistory(path: string, incoming: number): Promise<void> {
+  let size: number;
+  try {
+    size = (await stat(path)).size;
+  } catch (error) {
+    if (isRecord(error) && error.code === 'ENOENT') return;
+    throw error;
+  }
+  if (size > 0 && size + incoming > historyRotateBytes) await rename(path, `${path}.1`);
 }
 
 // What an agent adapter hands capture (ADR 0007): core never imports an
@@ -72,7 +89,9 @@ export async function captureEvent(adapter: CaptureAdapter): Promise<ClaudeEvent
     state.sessions = withoutExpiredSessions(state.sessions, Date.parse(event.timestamp));
     state.updatedAt = event.timestamp;
     await writeFile(temporaryPath, `${JSON.stringify(state, null, 2)}\n`, { flag: 'wx', mode: 0o600 });
-    await appendFile(paths.history, `${JSON.stringify(event)}\n`, { mode: 0o600 });
+    const line = `${JSON.stringify(event)}\n`;
+    await rotateHistory(paths.history, Buffer.byteLength(line));
+    await appendFile(paths.history, line, { mode: 0o600 });
     await rename(temporaryPath, paths.state);
     return event;
   } finally {

@@ -162,7 +162,7 @@ Files AgentBar writes (all readable only by you):
 | File | What is in it |
 | --- | --- |
 | `~/.local/state/agentbar/state.json` | One entry per session from the last 24 hours: session ID, project name and path, state, a one-line last message, times, and the Claude process ID |
-| `~/.local/state/agentbar/events.jsonl` | Every hook event, **including the full payload Claude Code sent**: the commands Claude ran, tool input and output (which can include file contents), and the path to its transcript. Kept for diagnosis. It is never shown in the UI and never pruned, so it grows until you delete it |
+| `~/.local/state/agentbar/events.jsonl` | Every hook event, **including the full payload Claude Code sent**: the commands Claude ran, tool input and output (which can include file contents), and the path to its transcript. Kept for diagnosis and never shown in the UI. When it reaches 10 MB it is renamed to `events.jsonl.1` (replacing the previous one) and a new file starts, so history uses at most about 20 MB |
 | `~/.claude/settings.json.agentbar-backup-<time>-<id>` | A copy of your Claude settings, made before every `install-hooks --apply` or `uninstall-hooks --apply` |
 
 Treat `events.jsonl` like your shell history: do not attach it to bug reports.

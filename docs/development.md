@@ -143,7 +143,7 @@ are specified in [`docs/architecture.md`](architecture.md).
 
 Default files are `~/.local/state/agentbar/state.json` and `~/.local/state/agentbar/events.jsonl`. `AGENTBAR_STATE_DIR` can override the directory with an absolute path; `XDG_STATE_HOME` is not used. Folders are created automatically. New state directories use mode `0700`; new data files use `0600`.
 
-The snapshot contains integer `schemaVersion` (currently `1`), `updatedAt`, and `sessions`. Each session stores `sessionId`, `projectName`, `projectPath`, `source`, `status`, `lastEventType`, `lastMessage`, `startedAt`, and `lastSeenAt`. `startedAt` means first observation, since capture can begin mid-session. Named session IDs identify rows even when the working directory changes. A session with no event for 24 hours (`sessionRetentionMs`, in `src/core/snapshot.ts`) is dropped from `state.json` on the next capture by any session, and the extension ignores it even before then. `events.jsonl` is never pruned and still grows until you archive or remove it.
+The snapshot contains integer `schemaVersion` (currently `1`), `updatedAt`, and `sessions`. Each session stores `sessionId`, `projectName`, `projectPath`, `source`, `status`, `lastEventType`, `lastMessage`, `startedAt`, and `lastSeenAt`. `startedAt` means first observation, since capture can begin mid-session. Named session IDs identify rows even when the working directory changes. A session with no event for 24 hours (`sessionRetentionMs`, in `src/core/snapshot.ts`) is dropped from `state.json` on the next capture by any session, and the extension ignores it even before then. `events.jsonl` is not affected by retention; it is capped instead: when the next line would take it past 10 MiB (`historyRotateBytes`, `src/core/state.ts`) it is renamed to `events.jsonl.1`, replacing the previous one, under the write lock.
 
 ## Snapshot compatibility
 
@@ -159,4 +159,4 @@ Writes use a shared lock, a temporary file, and an atomic rename. Readers reopen
 
 Blank input is accepted as `{}`; non-object JSON, malformed JSON, unsupported arguments, and input over 10 MiB produce a useful stderr message and exit code 1. Success emits no stdout and exit code 0. Capture errors do not use Claude's blocking exit code 2 or emit permission decisions. Invalid existing state is preserved and reported; back it up and move it aside before retrying.
 
-Raw payloads can include tool inputs, outputs, and local paths. All storage stays local; history grows until you archive or remove it. No transcript files are read and no network calls are made at runtime.
+Raw payloads can include tool inputs, outputs, and local paths. All storage stays local; history is capped at about 20 MiB across `events.jsonl` and `events.jsonl.1`. No transcript files are read and no network calls are made at runtime.

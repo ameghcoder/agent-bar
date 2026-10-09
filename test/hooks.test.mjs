@@ -332,3 +332,30 @@ test('no usable CLAUDE_PID records no process', async (t) => {
     assert.equal('agentProcess' in (await readState(directory)).sessions[0], false, String(value));
   }
 });
+
+// T604: the history is capped. When the next line would take events.jsonl past
+// 10 MiB it becomes events.jsonl.1 (replacing an older one) and a new file
+// starts, so history never uses more than about twice the cap.
+const historyCap = 10 * 1024 * 1024;
+
+test('history below the cap is appended to in place', async (t) => {
+  const directory = await temporaryDirectory(t);
+  await hook(directory, 'stop', { session_id: 'a', cwd: '/home/me/p' });
+  await hook(directory, 'stop', { session_id: 'a', cwd: '/home/me/p' });
+  assert.equal((await readHistory(directory)).length, 2);
+  await assert.rejects(stat(join(directory, 'events.jsonl.1')), { code: 'ENOENT' });
+});
+
+test('history that would pass 10 MiB moves to events.jsonl.1 and a new file starts', async (t) => {
+  const directory = await temporaryDirectory(t);
+  const { truncate } = await import('node:fs/promises');
+  await hook(directory, 'stop', { session_id: 'a', cwd: '/home/me/p' });
+  await truncate(join(directory, 'events.jsonl'), historyCap - 10);
+  await writeFile(join(directory, 'events.jsonl.1'), 'older history\n');
+  await hook(directory, 'pre_tool_use', { session_id: 'a', cwd: '/home/me/p', tool_name: 'Bash' });
+  assert.equal((await stat(join(directory, 'events.jsonl.1'))).size, historyCap - 10, 'the full file moved, replacing the older one');
+  const fresh = await readHistory(directory);
+  assert.deepEqual(fresh.map((event) => event.eventType), ['pre_tool_use']);
+  assert.equal((await stat(join(directory, 'events.jsonl'))).mode & 0o777, 0o600);
+  assert.equal((await readState(directory)).sessions[0].status, 'running', 'state is unaffected');
+});
