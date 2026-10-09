@@ -47,6 +47,10 @@ export function pickWindow(ancestors, windows, projectName) {
             continue;
         if (owned.length === 1)
             return owned[0];
+        // Without a name there is nothing to tell the windows apart by; an
+        // empty pattern would match almost any title.
+        if (!projectName)
+            return null;
         const word = new RegExp(`(^|[^\\w-])${escapeRegExp(projectName)}($|[^\\w-])`);
         const named = owned.filter(window => word.test(window.title ?? ''));
         return named.length === 1 ? named[0] : null;

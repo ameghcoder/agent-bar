@@ -23,11 +23,35 @@ if (!out) throw new Error('usage: build.mjs <output directory>');
 
 const git = (...args) => execFileSync('git', args, { cwd: root, encoding: 'utf8' }).trim();
 const epoch = Number(process.env.SOURCE_DATE_EPOCH ?? git('log', '-1', '--format=%ct'));
+if (!Number.isInteger(epoch) || epoch <= 0) throw new Error('SOURCE_DATE_EPOCH must be a positive integer.');
 const maintainer = process.env.DEB_MAINTAINER ?? `${git('config', 'user.name')} <${git('config', 'user.email')}>`;
 const manifest = JSON.parse(await readFile(join(root, 'package.json'), 'utf8'));
 const { version } = manifest;
-const minimumNode = manifest.engines.node.replace(/^>=\s*/, '').split('.').slice(0, 2).join('.');
+// Only a plain floor maps onto a Debian dependency; anything else must be
+// translated by hand rather than guessed.
+const floor = /^>=\s*(\d+)\.(\d+)\.\d+$/.exec(manifest.engines.node);
+if (!floor) throw new Error(`engines.node must be ">=X.Y.Z", not ${JSON.stringify(manifest.engines.node)}.`);
+const minimumNode = `${floor[1]}.${floor[2]}`;
 const shellVersion = JSON.parse(await readFile(join(root, 'os/linux/gnome-shell/metadata.json'), 'utf8'))['shell-version'][0];
+
+// DEP-5 continuation lines: indented by one space, blank lines as " .".
+const indent = (text) => text.split('\n').map((line) => (line.trim() ? ` ${line}` : ' .')).join('\n');
+
+// The standard ISC text, as published by the bundled packages that use it.
+const licenseTexts = {
+  MIT: null,
+  ISC: `Permission to use, copy, modify, and/or distribute this software for any
+purpose with or without fee is hereby granted, provided that the above
+copyright notice and this permission notice appear in all copies.
+
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.`,
+};
 
 const work = await mkdtemp(join(tmpdir(), 'agentbar-deb-'));
 try {
@@ -41,21 +65,28 @@ try {
   await mkdir(doc, { recursive: true });
   const modules = join(tree, 'usr/lib/agentbar/node_modules');
   const dependencies = [];
+  const licenses = new Set(['MIT']);
   for (const name of (await readdir(modules)).sort()) {
     const meta = JSON.parse(await readFile(join(modules, name, 'package.json'), 'utf8'));
-    dependencies.push(`Files: usr/lib/agentbar/node_modules/${name}/*\nCopyright: see usr/lib/agentbar/node_modules/${name}/\nLicense: ${meta.license}\n Full text in the LICENSE file of that directory.`);
+    // Only licenses whose text is below may ship; a new one is a decision.
+    if (!(meta.license in licenseTexts)) throw new Error(`${name} is licensed ${JSON.stringify(meta.license)}; add its text before shipping it.`);
+    licenses.add(meta.license);
+    dependencies.push(`Files: usr/lib/agentbar/node_modules/${name}/*\nCopyright: see usr/lib/agentbar/node_modules/${name}/\nLicense: ${meta.license}`);
   }
   // AgentBar's own license, with its full text: MIT is not one of the licenses
   // in /usr/share/common-licenses, so the copyright file must carry it.
   const licenseText = await readFile(join(root, 'LICENSE'), 'utf8');
   const holder = licenseText.match(/^Copyright \(c\) (.+)$/m)?.[1];
   if (manifest.license !== 'MIT' || !holder) throw new Error('package.json must say "license": "MIT" and LICENSE must carry a copyright line.');
-  const body = licenseText.slice(licenseText.indexOf('Permission is hereby granted')).trimEnd()
-    .split('\n').map((line) => (line.trim() ? ` ${line}` : ' .')).join('\n');
+  const mitBody = licenseText.slice(licenseText.indexOf('Permission is hereby granted')).trimEnd();
+  // DEP-5: every license named by a Files paragraph gets one standalone
+  // paragraph with its text, since neither MIT nor ISC is in common-licenses.
+  const standalone = [...licenses].sort().map((license) => `License: ${license}\n${indent(license === 'MIT' ? mitBody : licenseTexts[license])}`);
   await writeFile(join(doc, 'copyright'), [
     `Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/\nUpstream-Name: agentbar\nSource: https://github.com/ameghcoder/agent-bar`,
-    `Files: *\nCopyright: ${holder}\nLicense: MIT\n${body}`,
+    `Files: *\nCopyright: ${holder}\nLicense: MIT`,
     ...dependencies,
+    ...standalone,
   ].join('\n\n') + '\n');
   const date = new Date(epoch * 1000).toUTCString().replace('GMT', '+0000');
   await writeFile(join(doc, 'changelog.gz'), gzipSync(

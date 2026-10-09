@@ -177,9 +177,9 @@ process's parents through `/proc/<pid>/stat` and takes the nearest ancestor
 that owns a window. If that process owns one window, it is the target. Ptyxis,
 GNOME Terminal, and VS Code run every window from one process; then only a
 window whose title names the project as a whole word is picked, and if that is
-not exactly one window, nothing is. A row with a target is clickable; the
-lookup runs again at click time and calls `Main.activateWindow()`. Every other
-row keeps its read-only look. AgentBar never focuses a window it is unsure of:
+not exactly one window, nothing is. A row with a target is clickable: it looks
+the same as the others but highlights on hover. The lookup runs again at click
+time and calls `Main.activateWindow()`. Every other row stays inert. AgentBar never focuses a window it is unsure of:
 a wrong window coming forward is worse than none. Tabs are out of reach (no
 public API), so the window comes forward with whichever tab was last active.
 Window titles are matched in the Shell process and never logged or stored.

@@ -75,7 +75,31 @@ test('two builds of one commit are byte-identical', { skip }, async (t) => {
 test('the package states AgentBar\'s MIT license with its full text', { skip }, async (t) => {
   const deb = await build(t);
   const text = (await run('dpkg-deb', ['--fsys-tarfile', deb], { encoding: 'buffer', maxBuffer: 1 << 26 })).stdout.toString('latin1');
-  assert.match(text, /Files: \*\nCopyright: 2026 Yashraj and the AgentBar contributors\nLicense: MIT\n Permission is hereby granted, free of charge/);
+  // The text itself sits in the standalone MIT paragraph (DEP-5), checked below.
+  assert.match(text, /Files: \*\nCopyright: 2026 Yashraj and the AgentBar contributors\nLicense: MIT\n\n/);
+  assert.match(text, /\nLicense: MIT\n Permission is hereby granted, free of charge[^]* \.\n The above copyright notice/);
   assert.doesNotMatch(text, /not-yet-chosen/);
   assert.equal(JSON.parse(await readFile(join(root, 'package.json'), 'utf8')).license, 'MIT');
+});
+
+// T504 (M5 review): modes, and DEP-5 license paragraphs for the bundled code.
+test('every packaged entry has the intended mode', { skip }, async (t) => {
+  const deb = await build(t);
+  const lines = (await run('dpkg-deb', ['--contents', deb])).stdout.trim().split('\n');
+  for (const line of lines) {
+    const [mode] = line.split(/\s+/);
+    const path = line.split(/\s+/).slice(5).join(' ');
+    const expected = mode.startsWith('d') ? 'drwxr-xr-x'
+      : mode.startsWith('l') ? 'lrwxrwxrwx'
+      : /dist\/(src\/cli\/index|agents\/claude-code\/hooks\/claude-hook)\.js$/.test(path) ? '-rwxr-xr-x' : '-rw-r--r--';
+    assert.equal(mode, expected, path);
+  }
+});
+
+test('the copyright file has a standalone paragraph for every license it names', { skip }, async (t) => {
+  const deb = await build(t);
+  const text = (await run('dpkg-deb', ['--fsys-tarfile', deb], { encoding: 'buffer', maxBuffer: 1 << 26 })).stdout.toString('latin1');
+  assert.match(text, /\n\nLicense: ISC\n Permission to use, copy, modify, and\/or distribute this software/);
+  assert.match(text, /\nLicense: MIT\n Permission is hereby granted, free of charge/);
+  assert.doesNotMatch(text, /Full text in the LICENSE file/);
 });

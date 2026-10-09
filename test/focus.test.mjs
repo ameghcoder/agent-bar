@@ -53,3 +53,11 @@ test('the project name matches as a whole word, so "api" is not found inside "ra
   assert.equal(pickWindow([428, 200], windows, 'api'), null);
   assert.equal(pickWindow([428, 200], [window('a', 200, 'api: server'), window('b', 200, 'notes')], 'api')?.id, 'a');
 });
+
+// T504 (M5 review): an empty project name must not turn into a pattern that
+// matches any title with two separators in a row.
+test('an empty project name never picks among several windows', () => {
+  const windows = [window('a', 200, 'main.ts — editor'), window('b', 200, 'notes')];
+  assert.equal(pickWindow([428, 200], windows, ''), null);
+  assert.equal(pickWindow([428, 200], [window('only', 200, 'x')], '')?.id, 'only', 'a single window needs no name');
+});

@@ -46,7 +46,8 @@ test('install, activate, upgrade, uninstall hooks, remove, and reinstall keep us
   await writeFile(settingsPath, original);
   const { CLAUDE_PID: _pid, CLAUDE_PROJECT_DIR: _dir, ...inherited } = process.env;
   const userEnv = { ...inherited, HOME: home, CLAUDE_CONFIG_DIR: claude, AGENTBAR_STATE_DIR: join(home, 'state') };
-  const agentbar = (...args) => run(join(fakeRoot, 'usr/bin/agentbar'), args, { cwd: home, env: userEnv }).catch((error) => error);
+  // Through this Node: the installed shebang names /usr/bin/node, which this machine may not have.
+  const agentbar = (...args) => run(process.execPath, [join(fakeRoot, 'usr/bin/agentbar'), ...args], { cwd: home, env: userEnv }).catch((error) => error);
 
   // Clean install; doctor before activation names the remaining user step.
   await dpkg('-i', v1);
@@ -59,7 +60,7 @@ test('install, activate, upgrade, uninstall hooks, remove, and reinstall keep us
   const receiver = join(fakeRoot, 'usr/lib/agentbar/dist/agents/claude-code/hooks/claude-hook.js');
   assert.ok(settings.includes(receiver), 'hooks call the installed receiver');
   assert.ok(settings.includes('notify-send done'), 'the user\'s own hook is kept');
-  const hook = execFile(join(fakeRoot, 'usr/bin/agentbar-hook'), ['--event', 'stop'], { env: userEnv });
+  const hook = execFile(process.execPath, [join(fakeRoot, 'usr/bin/agentbar-hook'), '--event', 'stop'], { env: userEnv });
   hook.stdin.end(JSON.stringify({ session_id: 'packaged', cwd: '/home/me/project' }));
   assert.equal(await new Promise((resolve) => hook.on('close', resolve)), 0);
   const state = await readFile(join(home, 'state/state.json'), 'utf8');

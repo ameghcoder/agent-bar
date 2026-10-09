@@ -5,9 +5,13 @@ code is organised by desktop, then packaging, never by distro: the extension
 is GNOME-specific, not Ubuntu-specific. A distro gets its own folder only if
 its code genuinely diverges.
 
-| Distro | Version | Arch | Desktop | Session | Status |
-|---|---|---|---|---|---|
-| Ubuntu | 26.04 LTS | amd64 | GNOME Shell 50.1 | Wayland | Tested (development machine) |
+| Distro | Version | Arch | Desktop | Session | How | Status |
+|---|---|---|---|---|---|---|
+| Ubuntu | 26.04.1 LTS | amd64 | GNOME Shell 50.1 | Wayland | Source checkout, live Claude Code 2.1.295 | Tested (development machine) |
+| Ubuntu | 26.04.1 LTS | amd64 | GNOME Shell 50.1 | Wayland | `.deb` in a throwaway dpkg root (automated) | Tested (package lifecycle only) |
+| Ubuntu | not yet recorded | | | | `.deb` via App Center, second machine | Extension works after login (owner report); version and doctor output pending |
+
+The release regression in `docs/testing.md` is what moves a row to "Tested".
 
 Everything else is untested. Fedora and other distributions shipping GNOME
 Shell 50 may work with the same extension, but are not supported until

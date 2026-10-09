@@ -45,6 +45,16 @@ try {
   // 2. The runtime: compiled JS and a package.json that only states what Node needs.
   await mkdir(lib, { recursive: true });
   for (const part of ['src', 'agents', 'os']) await cp(join(work, 'dist', part), join(lib, 'dist', part), { recursive: true });
+  // The installed commands name the packaged system Node. `#!/usr/bin/env
+  // node` would run whatever node is first on PATH (nvm, volta), and the hook
+  // installer writes that Node's path into the user's Claude settings, where
+  // it breaks once that Node is removed.
+  for (const entry of entries) {
+    const path = join(lib, entry);
+    const text = await readFile(path, 'utf8');
+    if (!text.startsWith('#!/usr/bin/env node\n')) throw new Error(`${entry} does not start with the expected shebang.`);
+    await writeFile(path, `#!/usr/bin/node\n${text.slice('#!/usr/bin/env node\n'.length)}`);
+  }
   await writeFile(join(lib, 'package.json'), `${JSON.stringify({
     name: manifest.name, version: manifest.version, private: true, type: 'module', dependencies: manifest.dependencies,
   }, null, 2)}\n`);

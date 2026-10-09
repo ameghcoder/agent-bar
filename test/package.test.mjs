@@ -69,20 +69,22 @@ test('the staged commands work outside the checkout, and generated hooks call th
   const env = { ...withoutClaude(), HOME: home, AGENTBAR_STATE_DIR: join(home, 'state'), CLAUDE_CONFIG_DIR: join(home, '.claude') };
   const bin = (name) => join(directory, 'usr/bin', name);
   const options = { cwd: tmpdir(), env };
-  assert.equal((await run(bin('agentbar'), ['--version'], options)).stdout.trim(), version);
-  assert.equal((await run(bin('agentbar-hook'), ['--version'], options)).stdout.trim(), version);
-  assert.match((await run(bin('agentbar'), ['--help'], options)).stdout, /install-hooks/);
-  const preview = await run(bin('agentbar'), ['install-hooks'], options);
+  // The staged shebang names the packaged system Node (/usr/bin/node), which a
+  // development machine may not have, so the commands run through this Node.
+  assert.equal((await run(process.execPath, [bin('agentbar'), '--version'], options)).stdout.trim(), version);
+  assert.equal((await run(process.execPath, [bin('agentbar-hook'), '--version'], options)).stdout.trim(), version);
+  assert.match((await run(process.execPath, [bin('agentbar'), '--help'], options)).stdout, /install-hooks/);
+  const preview = await run(process.execPath, [bin('agentbar'), 'install-hooks'], options);
   const receiver = join(directory, 'usr/lib/agentbar/dist/agents/claude-code/hooks/claude-hook.js');
   assert.ok(preview.stdout.includes(receiver), 'hook commands point at the staged receiver');
   assert.ok(!preview.stdout.includes(root), 'and never at the source checkout');
-  const child = execFile(bin('agentbar-hook'), ['--event', 'stop'], options);
+  const child = execFile(process.execPath, [bin('agentbar-hook'), '--event', 'stop'], options);
   child.stdin.end(JSON.stringify({ session_id: 'staged', cwd: '/home/me/project' }));
   const code = await new Promise((resolve) => child.on('close', resolve));
   assert.equal(code, 0);
   const state = JSON.parse(await readFile(join(home, 'state', 'state.json'), 'utf8'));
   assert.deepEqual(state.sessions.map((session) => [session.sessionId, session.status]), [['staged', 'completed']]);
-  const doctor = await run(bin('agentbar'), ['doctor'], options).catch((error) => error);
+  const doctor = await run(process.execPath, [bin('agentbar'), 'doctor'], options).catch((error) => error);
   assert.match(doctor.stdout, /PASS AgentBar version +0\.1\.0/);
 });
 
@@ -91,4 +93,15 @@ test('two clean stages produce identical trees: names, modes, timestamps, and co
   assert.deepEqual(await tree(first), await tree(second));
   const times = new Set((await tree(first)).map((line) => line.split(' ')[2]));
   assert.deepEqual([...times], ['1760000000'], 'every entry carries SOURCE_DATE_EPOCH');
+});
+
+// T504 (M5 review): `#!/usr/bin/env node` would run whatever Node is first on
+// PATH (nvm, volta) and bake its path into the user's Claude hooks, which then
+// break when that Node is removed. The package depends on Ubuntu's nodejs, so
+// the installed commands name it.
+test('the installed commands run the packaged system Node, not the first node on PATH', async (t) => {
+  const directory = await stage(t);
+  for (const entry of ['usr/lib/agentbar/dist/src/cli/index.js', 'usr/lib/agentbar/dist/agents/claude-code/hooks/claude-hook.js']) {
+    assert.equal((await readFile(join(directory, entry), 'utf8')).split('\n')[0], '#!/usr/bin/node', entry);
+  }
 });
