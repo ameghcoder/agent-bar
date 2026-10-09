@@ -3,6 +3,7 @@
 AgentBar shows what your Claude Code sessions are doing in the GNOME top bar,
 so you can work in another window and still know when Claude needs you.
 
+`see the top-right corner, agentbar will visible on your OS like this`
 ![AgentBar in the GNOME top bar: "agent-bar - Waiting for you - 3m ago", with the menu open showing a waiting session, an ended session, and the health line "Receiving events - last 3m ago"](assets/preview/agent-bar-preview.png)
 
 - **Top bar:** the session that matters most, its state, and how long ago it
@@ -96,14 +97,28 @@ Reinstalling a file with the *same* version number needs
 
 ## Uninstall
 
-```sh
-agentbar uninstall-hooks --apply   # removes only AgentBar's hooks from Claude Code
-sudo apt remove agentbar
-```
+Three separate steps, from least to most thorough:
 
-Then restart Claude Code. Removing the package never touches your Claude
-settings or AgentBar's data in `~/.local/state/agentbar/`; delete that folder
-yourself if you want it gone.
+1. **Disconnect Claude Code.** Removes only the hooks AgentBar added, after a
+   backup; your other settings and hooks stay. Then restart Claude Code.
+
+   ```sh
+   agentbar uninstall-hooks --apply
+   ```
+
+2. **Remove the package.** Deletes the commands and the extension. It never
+   touches your Claude settings or AgentBar's data.
+
+   ```sh
+   sudo apt remove agentbar
+   ```
+
+3. **Optional: delete AgentBar's data.**
+
+   ```sh
+   rm -r ~/.local/state/agentbar
+   rm ~/.claude/settings.json.agentbar-backup-*   # only once you no longer need the backups
+   ```
 
 ## What the top bar says
 
@@ -129,20 +144,29 @@ yourself if you want it gone.
 | Clicking a session does nothing | AgentBar only brings a window forward when it is sure which one. With several terminal windows it needs the project name in the window title |
 
 `agentbar doctor` output contains no project names, prompts, or settings
-content, so it is safe to paste into a bug report.
+content, so it is safe to paste into a bug report. To report a problem, open a
+[bug report](https://github.com/ameghcoder/agent-bar/issues/new?template=bug_report.yml);
+the form asks for exactly what is needed and nothing private.
 
-## Privacy
+## Privacy and your data
 
 - AgentBar reads only what Claude Code passes to its hooks, plus the small
   `/proc/<pid>/stat` file of the Claude process, to see whether it is still
-  running.
-- It never reads your Claude transcripts.
+  running. It never reads your Claude transcripts.
 - The top bar and notifications show only project names and fixed state words,
   never your prompts, commands, file contents, or paths.
-- Data is kept in `~/.local/state/agentbar/` (owner-only permissions).
-  Sessions disappear from it after 24 hours. The event history file
-  `events.jsonl` grows until you delete it.
-- No network access, ever.
+- No network access, ever. Nothing is sent anywhere.
+
+Files AgentBar writes (all readable only by you):
+
+| File | What is in it |
+| --- | --- |
+| `~/.local/state/agentbar/state.json` | One entry per session from the last 24 hours: session ID, project name and path, state, a one-line last message, times, and the Claude process ID |
+| `~/.local/state/agentbar/events.jsonl` | Every hook event, **including the full payload Claude Code sent**: the commands Claude ran, tool input and output (which can include file contents), and the path to its transcript. Kept for diagnosis. It is never shown in the UI and never pruned, so it grows until you delete it |
+| `~/.claude/settings.json.agentbar-backup-<time>-<id>` | A copy of your Claude settings, made before every `install-hooks --apply` or `uninstall-hooks --apply` |
+
+Treat `events.jsonl` like your shell history: do not attach it to bug reports.
+Deleting it is safe at any time; AgentBar starts a new one.
 
 ## Known limitations
 
@@ -171,6 +195,7 @@ extension, connected only by a local JSON file.
   presentation rules.
 - [docs/adr/](docs/adr/): the decisions behind the design.
 - [docs/testing.md](docs/testing.md): the release check.
+- [CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md).
 - [contract/](contract/): the language-neutral data contract.
 - Adding support for another coding agent? Start with
   [agents/README.md](agents/README.md).

@@ -1,0 +1,74 @@
+name: Bug report
+description: AgentBar shows something wrong, misses an event, or does not install.
+labels: ["needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for testing AgentBar. Please do **not** paste or attach
+        `~/.local/state/agentbar/events.jsonl`, `state.json`, or
+        `~/.claude/settings.json`: they can contain your commands, file
+        contents, and paths. `agentbar doctor` output is safe to share.
+  - type: input
+    id: agentbar
+    attributes:
+      label: AgentBar version
+      description: Output of `agentbar --version`
+      placeholder: 0.1.0
+    validations:
+      required: true
+  - type: input
+    id: system
+    attributes:
+      label: Ubuntu and GNOME versions
+      description: Output of `lsb_release -ds; gnome-shell --version; echo $XDG_SESSION_TYPE`
+      placeholder: Ubuntu 26.04.1 LTS / GNOME Shell 50.1 / wayland
+    validations:
+      required: true
+  - type: input
+    id: claude
+    attributes:
+      label: Claude Code version
+      description: Output of `claude --version`
+    validations:
+      required: true
+  - type: dropdown
+    id: install
+    attributes:
+      label: How AgentBar is installed
+      options:
+        - .deb package
+        - From a source checkout
+    validations:
+      required: true
+  - type: textarea
+    id: happened
+    attributes:
+      label: What happened, and what you expected
+      description: For example "the top bar stayed Working after Claude asked for permission".
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. ...
+        2. ...
+  - type: textarea
+    id: doctor
+    attributes:
+      label: agentbar doctor output
+      description: Paste the full output. It shows paths relative to your home folder and no project names or prompts.
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: GNOME Shell log lines (optional)
+      description: |
+        Only lines that mention AgentBar, from
+        `journalctl --user -b -o cat _COMM=gnome-shell | grep -i agentbar`.
+        Check them for anything private before pasting.
+      render: text
