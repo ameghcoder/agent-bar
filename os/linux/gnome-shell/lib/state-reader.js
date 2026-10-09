@@ -21,9 +21,9 @@ function emptySnapshot(now) {
 
 // ADR 0008: a session's agent process is alive when /proc/<pid>/stat exists
 // and carries the start token recorded with it; otherwise it has ended (a
-// reused PID has a different start). Only that one file is read. procfs reads
-// are served from kernel memory, so this synchronous read cannot stall the
-// Shell the way disk I/O could.
+// reused PID has a different start). Only that one file is read. The read is
+// synchronous, but procfs is generated from kernel memory, not disk I/O, and
+// it is one small file per session.
 function livenessOf(sessions) {
   const liveness = {};
   for (const session of sessions) {
@@ -77,11 +77,22 @@ export class StateWatcher {
       this._reread();
       return GLib.SOURCE_CONTINUE;
     });
-    this._livenessSource = GLib.timeout_add(GLib.PRIORITY_DEFAULT, this._livenessIntervalMs, () => {
-      if (this._destroyed) return GLib.SOURCE_REMOVE;
-      this._refreshLiveness();
-      return GLib.SOURCE_CONTINUE;
-    });
+  }
+
+  // ADR 0008: the liveness timer runs only while some session recorded a
+  // process, so a machine without one has no extra wakeups.
+  _syncLivenessTimer() {
+    const needed = !this._destroyed && Boolean(this._lastState?.sessions.some((session) => session.agentProcess));
+    if (needed && !this._livenessSource) {
+      this._livenessSource = GLib.timeout_add(GLib.PRIORITY_DEFAULT, this._livenessIntervalMs, () => {
+        if (this._destroyed) return GLib.SOURCE_REMOVE;
+        this._refreshLiveness();
+        return GLib.SOURCE_CONTINUE;
+      });
+    } else if (!needed && this._livenessSource) {
+      GLib.Source.remove(this._livenessSource);
+      this._livenessSource = 0;
+    }
   }
 
   // Idempotent and safe to call more than once; disable() must never throw.
@@ -152,7 +163,7 @@ export class StateWatcher {
         return;
       }
       if (size > maxSnapshotBytes) {
-        this._tooLarge(size);
+        this._tooLarge();
         return;
       }
       source.load_contents_async(null, (_, loaded) => {
@@ -165,7 +176,7 @@ export class StateWatcher {
           return;
         }
         if (contents.length > maxSnapshotBytes) {
-          this._tooLarge(contents.length);
+          this._tooLarge();
           return;
         }
         this._present(new TextDecoder().decode(contents));
@@ -185,8 +196,10 @@ export class StateWatcher {
     }
   }
 
-  _tooLarge(bytes) {
-    this._unavailable(`State file is too large (${bytes} bytes, limit ${maxSnapshotBytes}).`);
+  // No byte count in the message: a file that keeps growing must produce the
+  // same message, so it is reported once.
+  _tooLarge() {
+    this._unavailable(`State file is too large (limit ${maxSnapshotBytes} bytes).`);
   }
 
   // The fallback timer re-reads every 30 s, so a file that stays broken would
@@ -194,6 +207,7 @@ export class StateWatcher {
   // message is reported once until a good read publishes a view again.
   _unavailable(message) {
     this._lastState = null;
+    this._syncLivenessTimer();
     if (message === this._reportedUnavailable) return;
     this._reportedUnavailable = message;
     this._onUnavailable(message);
@@ -207,6 +221,7 @@ export class StateWatcher {
       const now = this._now();
       if (text === null) {
         this._lastState = null;
+        this._syncLivenessTimer();
         this._publish(presentSnapshot(emptySnapshot(now)));
         return;
       }
@@ -219,6 +234,7 @@ export class StateWatcher {
       // the retention window are dropped here, where state is read.
       this._lastState = { ...parsed.state, sessions: withoutExpiredSessions(parsed.state.sessions, now) };
       this._liveness = livenessOf(this._lastState.sessions);
+      this._syncLivenessTimer();
       this._publish(presentSnapshot(this._lastState, { now, staleAfterMs: this._staleAfterMs, liveness: this._liveness }));
     } catch (error) {
       this._unavailable(`Cannot present the state: ${error.message}`);

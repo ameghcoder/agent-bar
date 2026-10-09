@@ -154,3 +154,10 @@ test('the Linux start token is field 22 of /proc/<pid>/stat, even when the proce
   assert.equal(linuxStartToken('garbage'), undefined);
   assert.equal(linuxStartToken(''), undefined);
 });
+
+test('a zombie or dead process has no start token, so it reads as ended', () => {
+  const fields = (state) => `123 (claude) ${state} ${Array.from({ length: 50 }, (_, index) => String(index + 4)).join(' ')}`;
+  assert.equal(linuxStartToken(fields('S')), '22');
+  assert.equal(linuxStartToken(fields('Z')), undefined);
+  assert.equal(linuxStartToken(fields('X')), undefined);
+});

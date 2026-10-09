@@ -94,12 +94,17 @@ function withValidProcess(session: SessionState): SessionState {
   return rest;
 }
 
-// The `starttime` field of a Linux /proc/<pid>/stat line. The process name in
-// field 2 may hold spaces and parentheses, so fields are counted from the last ')'.
+// The `starttime` field of a Linux /proc/<pid>/stat line, for a process that
+// is still running. The process name in field 2 may hold spaces and
+// parentheses, so fields are counted from the last ')'. A zombie (Z) or dead
+// (X) process keeps its stat file and start time until reaped, but it has
+// ended, so it has no token.
 export function linuxStartToken(stat: string): string | undefined {
   const close = stat.lastIndexOf(')');
   if (close === -1) return undefined;
-  const token = stat.slice(close + 2).split(' ')[19];
+  const fields = stat.slice(close + 2).split(' ');
+  if (fields[0] === 'Z' || fields[0] === 'X') return undefined;
+  const token = fields[19];
   return token && /^\d+$/.test(token) ? token : undefined;
 }
 

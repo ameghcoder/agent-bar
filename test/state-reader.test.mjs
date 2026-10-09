@@ -90,7 +90,8 @@ const robustness = (t, scenario) => runHarness(t, robustnessHarness, [scenario])
 test('a state file over the size limit is unavailable and is never parsed', { skip: process.platform !== 'linux' }, async (t) => {
   const { lines } = await robustness(t, 'oversized');
   assert.deepEqual(lines.map((line) => line.kind), ['unavailable']);
-  assert.match(lines[0].message, /too large/);
+  // No byte count: a growing file must keep the same message, so it is reported once.
+  assert.equal(lines[0].message, 'State file is too large (limit 1048576 bytes).');
 });
 
 test('when two reads overlap, only the newest publishes', { skip: process.platform !== 'linux' }, async (t) => {
@@ -162,4 +163,9 @@ test('the reader recovers from every listed interruption and reports a persisten
   assert.equal(last('clock-past-stale').stale, true, 'an active session goes stale with no new write');
   assert.equal(last('clock-past-stale').status, 'running', 'stale keeps the observed status, never completed or failed');
   assert.equal(last('fresh-event').stale, false, 'a later event clears staleness');
+});
+
+test('the liveness timer runs only while some session recorded a process', { skip: process.platform !== 'linux' }, async (t) => {
+  const { lines } = await robustness(t, 'liveness-timer');
+  assert.deepEqual(lines.filter((line) => line.kind === 'timer').map((line) => line.running), [false, true, false]);
 });

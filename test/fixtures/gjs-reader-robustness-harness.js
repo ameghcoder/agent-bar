@@ -5,6 +5,7 @@
 //   overlap              two reads in flight at once; only the newest may publish
 //   throwing-view        the view callback throws once
 //   startup-unavailable  the first read is malformed, then a valid snapshot arrives
+//   liveness-timer       no process, then a process, then none: the timer follows
 import GLib from 'gi://GLib';
 
 import { StateWatcher } from '../../os/linux/gnome-shell/lib/state-reader.js';
@@ -25,14 +26,14 @@ function write(contents) {
   GLib.rename(tmp, statePath);
 }
 
-function snapshot(sessionId, status) {
+function snapshot(sessionId, status, extra = {}) {
   const at = new Date(now).toISOString();
   return JSON.stringify({
     schemaVersion: 1,
     updatedAt: at,
     sessions: [{
       sessionId, projectName: sessionId, projectPath: `/home/me/${sessionId}`, source: 'claude-code',
-      status, lastEventType: 'stop', lastMessage: 'x', startedAt: at, lastSeenAt: at,
+      status, lastEventType: 'stop', lastMessage: 'x', startedAt: at, lastSeenAt: at, ...extra,
     }],
   });
 }
@@ -73,9 +74,27 @@ if (scenario === 'oversized') {
     watcher._reread();
     return GLib.SOURCE_REMOVE;
   });
+} else if (scenario === 'liveness-timer') {
+  // _livenessSource is internal; nothing public reveals whether the timer runs.
+  const timer = () => emit('timer', { running: watcher._livenessSource !== 0 });
+  write(snapshot('plain', 'running'));
+  watcher.start();
+  GLib.timeout_add(GLib.PRIORITY_DEFAULT, 100, () => {
+    timer();
+    write(snapshot('tracked', 'running', { agentProcess: { pid: 1, start: '1' } }));
+    watcher._reread();
+    GLib.timeout_add(GLib.PRIORITY_DEFAULT, 100, () => {
+      timer();
+      write(snapshot('plain', 'running'));
+      watcher._reread();
+      GLib.timeout_add(GLib.PRIORITY_DEFAULT, 100, () => { timer(); return GLib.SOURCE_REMOVE; });
+      return GLib.SOURCE_REMOVE;
+    });
+    return GLib.SOURCE_REMOVE;
+  });
 }
 
-GLib.timeout_add(GLib.PRIORITY_DEFAULT, 400, () => {
+GLib.timeout_add(GLib.PRIORITY_DEFAULT, scenario === 'liveness-timer' ? 600 : 400, () => {
   watcher.stop();
   loop.quit();
   return GLib.SOURCE_REMOVE;

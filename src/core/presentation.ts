@@ -213,7 +213,9 @@ export function presentSnapshot(state: AgentBarState, options: PresentOptions = 
   // there, while its menu row still names the last status actually observed.
   const summary = leader?.stale ? 'unknown' : leader?.status ?? 'idle';
   return {
-    status: leader?.status ?? 'idle',
+    // A dead process is not still in its last status (ADR 0008); the menu row
+    // keeps the observed status, the indicator does not claim it.
+    status: leader && !leader.ended ? leader.status : 'idle',
     label: leader?.ended ? endedLabel : statusLabel(summary),
     intent: leader?.ended ? endedIntent : statusIntent(summary),
     stale: leader?.stale ?? false,
@@ -257,7 +259,9 @@ export function notificationsFor(previous: IndicatorView | undefined, next: Indi
   if (!previous) return [];
   const before = new Map(previous.sessions.map((session) => [session.sessionId, session.status]));
   return next.sessions
-    .filter((session) => notifyStatuses.includes(session.status) && before.get(session.sessionId) !== session.status)
+    // ADR 0008: an ended session never notifies, even for a status change
+    // first read in the same pass as its process ending.
+    .filter((session) => !session.ended && notifyStatuses.includes(session.status) && before.get(session.sessionId) !== session.status)
     .map((session) => ({
       sessionId: session.sessionId,
       title: statusLabel(session.status),

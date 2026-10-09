@@ -452,3 +452,20 @@ test('a process ending raises no notification', () => {
   const sessions = [session('a', 'permission_required', 1)];
   assert.deepEqual(notificationsFor(live(sessions, { a: 'alive' }), live(sessions, { a: 'ended' })), []);
 });
+
+// T405 (M4 review): ADR 0008 says an ended session never notifies, even when
+// its last status change is first read in the same pass as its process ending.
+test('an ended session never notifies, whatever its status changed to', () => {
+  const before = live([session('a', 'running', 2)], { a: 'alive' });
+  for (const status of ['completed', 'failed', 'waiting', 'permission_required']) {
+    assert.deepEqual(notificationsFor(before, live([session('a', status, 1)], { a: 'ended' })), [], status);
+  }
+  const empty = live([], {});
+  assert.deepEqual(notificationsFor(empty, live([session('b', 'failed', 1)], { b: 'ended' })), [], 'first seen already ended');
+});
+
+test('when every session has ended the indicator status is idle, not the dead session\'s last status', () => {
+  const result = live([session('gone', 'permission_required', 3)], { gone: 'ended' });
+  assert.equal(result.status, 'idle');
+  assert.equal(result.sessions[0].status, 'permission_required', 'the menu row still records what was observed');
+});

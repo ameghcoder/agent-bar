@@ -23,19 +23,21 @@ function zone(path) {
   return top === 'contract' ? 'contract' : `${top}/${second}`;
 }
 
+// Every zone is listed: a new folder under src/ is denied until its rule is
+// written here, rather than silently allowed to import anything.
 const allowed = (from, to) => {
   if (from === 'src/cli') return true;
   if (from === 'src/core') return to === 'src/core';
   if (from === 'src/doctor') return to === 'src/doctor' || to === 'src/core';
   if (from.startsWith('agents/') || from.startsWith('os/')) return to === from || to === 'src/core' || to === 'contract';
-  return true;
+  return false;
 };
 
 async function violations(files) {
   const found = [];
   for (const file of files) {
     const source = await readFile(join(root, file), 'utf8');
-    for (const [, specifier] of source.matchAll(/(?:from|import)\s*\(?\s*'(\.{1,2}\/[^']+)'/g)) {
+    for (const [, , specifier] of source.matchAll(/(?:from|import)\s*\(?\s*(['"])(\.{1,2}\/[^'"]+)\1/g)) {
       const target = relative(root, resolve(root, dirname(file), specifier));
       if (!allowed(zone(file), zone(target))) found.push(`${file} -> ${target}`);
     }
@@ -51,11 +53,20 @@ test('imports follow the dependency direction in ADR 0007', async () => {
 
 test('the dependency check catches an agent importing an OS folder and core importing an agent', async (t) => {
   const { rm, writeFile } = await import('node:fs/promises');
-  const probes = { 'agents/claude-code/.probe.ts': '../../os/linux/doctor.js', 'src/core/.probe.ts': '../../agents/claude-code/translate.js' };
+  const probes = {
+    'agents/claude-code/.probe.ts': '../../os/linux/doctor.js',
+    'src/core/.probe.ts': '../../agents/claude-code/translate.js',
+    'src/newzone/.probe.ts': '../../agents/claude-code/translate.js',
+  };
   t.after(() => Promise.all(Object.keys(probes).map((file) => rm(join(root, file), { force: true }))));
-  for (const [file, specifier] of Object.entries(probes)) await writeFile(join(root, file), `import { x } from '${specifier}';\n`);
+  const { mkdir } = await import('node:fs/promises');
+  await mkdir(join(root, 'src/newzone'), { recursive: true });
+  t.after(() => rm(join(root, 'src/newzone'), { recursive: true, force: true }));
+  // Double quotes on purpose: the check must not depend on quote style.
+  for (const [file, specifier] of Object.entries(probes)) await writeFile(join(root, file), `import { x } from "${specifier}";\n`);
   assert.deepEqual(await violations(Object.keys(probes)), [
     'agents/claude-code/.probe.ts -> os/linux/doctor.js',
     'src/core/.probe.ts -> agents/claude-code/translate.js',
+    'src/newzone/.probe.ts -> agents/claude-code/translate.js',
   ]);
 });

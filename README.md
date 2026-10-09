@@ -104,16 +104,25 @@ Read-only. Prints one `PASS`, `WARN`, or `FAIL` line per check (AgentBar and Nod
 | `pre_tool_use` | `running` (tool about to run) |
 | `post_tool_use` | `running` (tool finished; turn may continue) |
 | `notification` | `permission_required` for `permission_prompt`; `waiting` for `idle_prompt`, elicitation dialogs, or `agent_needs_input`; otherwise `unknown` |
-| `permission_request` | `permission_required` |
+| `permission_request` | `permission_required`; `waiting` when the tool is `AskUserQuestion` (Claude is asking you a question, not asking permission) |
 | `stop` | `completed` (response ended) |
 | `session_end` | `idle` (session ended) |
-| `error` | `failed` (observed tool or turn failure) |
+| `error` | `running` for `PostToolUseFailure` (a failed tool call is routine; Claude carries on); `failed` for `StopFailure` (the turn failed) or an error with no hook name |
 
 `lastMessage` is a presentation string: the first non-blank line of the source text, whitespace collapsed, capped at 120 characters. A raw `message` field replaces the generated text only for `notification` and `permission_request`, the events where Claude authors a user-facing message; on every other event it is ignored. For `error`, the first line of `error` or `error_details` is used and the full text stays in `raw` only.
 
-Status describes the last captured event, not a guarantee that the whole task succeeded. A tool error may be followed by recovery. A stop may be followed by another turn. Unknown notifications do not infer activity from message text. This Day 1 subset does not capture thinking before the first tool call, permission decisions themselves, parallel tool aggregation, or process exits without hooks.
+Status describes the last captured event, not a guarantee that the whole task succeeded. A stop may be followed by another turn. Unknown notifications do not infer activity from message text.
 
-The snapshot contains `schemaVersion`; history records do not. Every history record has `id`, `timestamp`, `source`, `projectPath`, `projectName`, `sessionId`, `eventType`, `status`, `message`, and the original parsed `raw` object. IDs are UUIDs; timestamps are local capture times in UTC. Missing `cwd` falls back to the receiver's working directory.
+Known limitations, stated plainly:
+
+- Nothing is captured between your prompt and Claude's first tool call, so a session that is only thinking still reads as its previous state.
+- Permission decisions themselves (allowed or denied) are not observed; the next event replaces the permission state.
+- Parallel tool calls are not aggregated; the last event wins.
+- A Claude process that exits without `SessionEnd` (closed terminal, crash, `kill`) is detected only on Linux and only when Claude Code passes `CLAUDE_PID` to hooks (ADR 0008); the session then reads "Ended" within about 10 seconds. Without it, the session goes stale after 10 minutes and expires after 24 hours.
+- Every mapping above was observed live on Claude Code 2.1.295 except `StopFailure`, which has not occurred in a live session yet and is covered by synthetic tests only.
+- A failed tool call keeps its error's first line as the session's last message, but never in a notification or the top bar.
+
+The snapshot contains `schemaVersion`; history records do not. Every history record has `id`, `timestamp`, `source`, `projectPath`, `projectName`, `sessionId`, `eventType`, `status`, `message`, the original parsed `raw` object, and, when Claude Code passed `CLAUDE_PID`, `agentProcess` (`pid` and its `/proc` start time). IDs are UUIDs; timestamps are local capture times in UTC. Missing `cwd` falls back to the receiver's working directory.
 
 ## Presentation model
 

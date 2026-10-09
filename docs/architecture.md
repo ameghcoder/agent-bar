@@ -162,7 +162,9 @@ before.
 
 An **ended** session (file gone or `start` differs) reads "Ended" with the quiet
 intent: never stale, never attention, never in `+N`, never a notification, and
-it leads the title only when every session has ended. An **alive** session
+it leads the title only when every session has ended, and then the
+indicator's `status` is `idle`, never the dead session's last status (the
+menu row still records what was observed). An **alive** session
 still goes stale after 10 minutes, because a running process proves Claude is
 open, not that it is working; its menu row adds "Claude open". Only
 `/proc/<pid>/stat` is ever read, never `cmdline` or `environ`.

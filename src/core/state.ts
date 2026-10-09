@@ -46,7 +46,14 @@ export async function captureEvent(adapter: CaptureAdapter): Promise<ClaudeEvent
     const normalized = adapter.normalize();
     const index = state.sessions.findIndex((session) => session.sessionId === normalized.sessionId);
     const previous = state.sessions[index];
-    const event = adapter.reconcile(normalized, previous);
+    // Identity and the commit-order timestamp belong to core: a reconcile that
+    // changed the session ID would overwrite another session's slot.
+    const event = {
+      ...adapter.reconcile(normalized, previous),
+      id: normalized.id,
+      sessionId: normalized.sessionId,
+      timestamp: normalized.timestamp,
+    };
     const session: SessionState = {
       sessionId: event.sessionId,
       projectName: event.projectName,
