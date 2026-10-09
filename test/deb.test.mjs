@@ -69,3 +69,13 @@ test('two builds of one commit are byte-identical', { skip }, async (t) => {
   const hash = async (path) => createHash('sha256').update(await readFile(path)).digest('hex');
   assert.equal(await hash(await build(t)), await hash(await build(t)));
 });
+
+// AgentBar is MIT licensed (owner decision 2026-10-09). MIT is not in
+// /usr/share/common-licenses, so the copyright file carries the full text.
+test('the package states AgentBar\'s MIT license with its full text', { skip }, async (t) => {
+  const deb = await build(t);
+  const text = (await run('dpkg-deb', ['--fsys-tarfile', deb], { encoding: 'buffer', maxBuffer: 1 << 26 })).stdout.toString('latin1');
+  assert.match(text, /Files: \*\nCopyright: 2026 Yashraj and the AgentBar contributors\nLicense: MIT\n Permission is hereby granted, free of charge/);
+  assert.doesNotMatch(text, /not-yet-chosen/);
+  assert.equal(JSON.parse(await readFile(join(root, 'package.json'), 'utf8')).license, 'MIT');
+});

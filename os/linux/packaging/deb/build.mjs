@@ -45,12 +45,16 @@ try {
     const meta = JSON.parse(await readFile(join(modules, name, 'package.json'), 'utf8'));
     dependencies.push(`Files: usr/lib/agentbar/node_modules/${name}/*\nCopyright: see usr/lib/agentbar/node_modules/${name}/\nLicense: ${meta.license}\n Full text in the LICENSE file of that directory.`);
   }
-  const ownLicense = manifest.license
-    ? `License: ${manifest.license}\n Full text in /usr/lib/agentbar/LICENSE.`
-    : 'License: LicenseRef-not-yet-chosen\n AgentBar has not chosen a license yet. This package is a release\n candidate and must not be redistributed until it has.';
+  // AgentBar's own license, with its full text: MIT is not one of the licenses
+  // in /usr/share/common-licenses, so the copyright file must carry it.
+  const licenseText = await readFile(join(root, 'LICENSE'), 'utf8');
+  const holder = licenseText.match(/^Copyright \(c\) (.+)$/m)?.[1];
+  if (manifest.license !== 'MIT' || !holder) throw new Error('package.json must say "license": "MIT" and LICENSE must carry a copyright line.');
+  const body = licenseText.slice(licenseText.indexOf('Permission is hereby granted')).trimEnd()
+    .split('\n').map((line) => (line.trim() ? ` ${line}` : ' .')).join('\n');
   await writeFile(join(doc, 'copyright'), [
     `Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/\nUpstream-Name: agentbar\nSource: https://github.com/ameghcoder/agent-bar`,
-    `Files: *\nCopyright: AgentBar contributors\n${ownLicense}`,
+    `Files: *\nCopyright: ${holder}\nLicense: MIT\n${body}`,
     ...dependencies,
   ].join('\n\n') + '\n');
   const date = new Date(epoch * 1000).toUTCString().replace('GMT', '+0000');

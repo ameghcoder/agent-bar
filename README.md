@@ -172,3 +172,7 @@ Raw payloads can include tool inputs, outputs, and local paths. All storage stay
 ## Day 2
 
 Validate the hooks against a real Claude Code session, including permission prompts, failure recovery, and two simultaneous projects. Add prompt-submission capture and decide how to represent stale sessions and parallel activity. Then build the smallest GNOME reader: monitor the state directory, reopen the snapshot, show an aggregate icon, and list each session's project, status, and last message in a menu. Keep capture independent of the extension.
+
+## License
+
+MIT. See [LICENSE](LICENSE).
