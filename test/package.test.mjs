@@ -85,7 +85,7 @@ test('the staged commands work outside the checkout, and generated hooks call th
   const state = JSON.parse(await readFile(join(home, 'state', 'state.json'), 'utf8'));
   assert.deepEqual(state.sessions.map((session) => [session.sessionId, session.status]), [['staged', 'completed']]);
   const doctor = await run(process.execPath, [bin('agentbar'), 'doctor'], options).catch((error) => error);
-  assert.match(doctor.stdout, /PASS AgentBar version +0\.1\.0/);
+  assert.match(doctor.stdout, new RegExp(`PASS AgentBar version +${version.replaceAll('.', '\\.')}`));
 });
 
 test('two clean stages produce identical trees: names, modes, timestamps, and content', async (t) => {

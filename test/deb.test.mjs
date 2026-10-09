@@ -120,3 +120,14 @@ test('man pages ship for both commands', { skip }, async (t) => {
   assert.match(contents, /\.\/usr\/share\/man\/man1\/agentbar\.1\.gz/);
   assert.match(contents, /\.\/usr\/share\/man\/man1\/agentbar-hook\.1\.gz/);
 });
+
+// T602: the build writes the checksum file the release notes tell users to
+// verify, in sha256sum's own format, naming the file without a directory.
+test('the build writes a checksum file that sha256sum -c accepts', { skip }, async (t) => {
+  const deb = await build(t);
+  const name = deb.split('/').pop();
+  const line = (await readFile(`${deb}.sha256`, 'utf8')).trim();
+  assert.match(line, new RegExp(`^[0-9a-f]{64}  ${name.replaceAll('.', '\\.')}$`));
+  const check = await run('sha256sum', ['-c', `${name}.sha256`], { cwd: join(deb, '..') });
+  assert.match(check.stdout, new RegExp(`${name.replaceAll('.', '\\.')}: OK`));
+});

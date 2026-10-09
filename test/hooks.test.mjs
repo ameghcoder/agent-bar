@@ -132,8 +132,10 @@ test('Commander provides CLI help and version output', async (t) => {
   assert.match(hookHelp.stdout, /Usage: agentbar-hook \[options\]/);
   assert.match(hookHelp.stdout, /permission_request/);
 
-  assert.equal((await run(directory, [cli, '--version'])).stdout.trim(), '0.1.0');
-  assert.equal((await run(directory, [receiver, '--version'])).stdout.trim(), '0.1.0');
+  // The release version itself is pinned by test/version.test.mjs.
+  const { version } = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
+  assert.equal((await run(directory, [cli, '--version'])).stdout.trim(), version);
+  assert.equal((await run(directory, [receiver, '--version'])).stdout.trim(), version);
 });
 
 test('accepts empty stdin and reports oversized input', async (t) => {

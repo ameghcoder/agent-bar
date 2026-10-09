@@ -36,3 +36,11 @@ test('src/core/version.ts is the only TypeScript file that spells the version', 
   }
   assert.deepEqual(spelling, ['src/core/version.ts']);
 });
+
+// T602: the changelog's newest entry and the release notes name this version.
+test('the changelog and release notes describe the package version', async () => {
+  const changelog = await readFile(new URL('CHANGELOG.md', root), 'utf8');
+  assert.equal(changelog.match(/^## (\S+)/m)?.[1], version);
+  const notes = await readFile(new URL(`docs/release-notes/v${version}.md`, root), 'utf8');
+  assert.match(notes, new RegExp(`agentbar_${version.replaceAll('.', '\\.')}_all\\.deb`));
+});

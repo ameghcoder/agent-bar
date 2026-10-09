@@ -92,7 +92,7 @@ By default the extension reads `~/.local/state/agentbar/state.json`, same as the
 ## Build the package
 
 ```sh
-pnpm package:deb                                   # writes dist/package/agentbar_<version>_all.deb
+pnpm package:deb                                   # writes dist/package/agentbar_<version>_all.deb and its .sha256
 dpkg-deb --info dist/package/agentbar_*_all.deb    # metadata
 dpkg-deb --contents dist/package/agentbar_*_all.deb
 ```

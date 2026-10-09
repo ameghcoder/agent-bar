@@ -27,8 +27,9 @@ test('install, activate, upgrade, uninstall hooks, remove, and reinstall keep us
   const raw = join(work, 'raw');
   await run('dpkg-deb', ['-R', v1, raw]);
   const control = join(raw, 'DEBIAN/control');
-  await writeFile(control, (await readFile(control, 'utf8')).replace(/^Version: .*$/m, 'Version: 0.1.1'));
-  const v2 = join(work, 'agentbar_0.1.1_all.deb');
+  // A later version than the one being released, whatever that is.
+  await writeFile(control, (await readFile(control, 'utf8')).replace(/^Version: (.*)$/m, 'Version: $1.1'));
+  const v2 = join(work, 'agentbar_next_all.deb');
   await run('dpkg-deb', ['--root-owner-group', '--build', raw, v2]);
 
   const fakeRoot = join(work, 'root');
@@ -68,7 +69,7 @@ test('install, activate, upgrade, uninstall hooks, remove, and reinstall keep us
 
   // Upgrade: user state and settings are untouched and hooks still resolve.
   await dpkg('-i', v2);
-  assert.match((await dpkg('-s', 'agentbar')).stdout, /^Version: 0\.1\.1$/m);
+  assert.match((await dpkg('-s', 'agentbar')).stdout, /^Version: \d+\.\d+\.\d+\.1$/m);
   assert.equal(await readFile(join(home, 'state/state.json'), 'utf8'), state);
   assert.equal(await readFile(settingsPath, 'utf8'), settings);
   assert.match((await agentbar('doctor')).stdout, /PASS Claude hooks/);
@@ -87,5 +88,12 @@ test('install, activate, upgrade, uninstall hooks, remove, and reinstall keep us
 
   // Reinstall.
   await dpkg('-i', v1);
+
+  // Rollback: the release notes' downgrade path. Install the later build, then
+  // the earlier one over it; it works and leaves user state alone.
+  await dpkg('-i', v2);
+  await dpkg('-i', v1);
+  assert.match((await dpkg('-s', 'agentbar')).stdout, new RegExp(`^Version: ${JSON.parse(await readFile(join(root, 'package.json'), 'utf8')).version.replaceAll('.', '\\.')}$`, 'm'));
+  assert.equal(await readFile(join(home, 'state/state.json'), 'utf8'), state, 'rollback leaves user state alone');
   assert.equal((await agentbar('--version')).stdout.trim(), JSON.parse(await readFile(join(root, 'package.json'), 'utf8')).version);
 });

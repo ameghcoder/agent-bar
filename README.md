@@ -19,7 +19,7 @@ so you can work in another window and still know when Claude needs you.
 
 Everything stays on your machine. No account, no server, no telemetry.
 
-**Status: beta (0.1.0).**
+**Status: beta (0.2.0).**
 
 ## What you need
 

@@ -53,7 +53,8 @@ test('doctor on a fresh home fails, names the failing checks, modifies nothing, 
   assert.match(result.stdout, /install-hooks --apply/);
   assert.match(result.stdout, /WARN +State snapshot/);
   assert.match(result.stdout, /PASS +Node version/);
-  assert.match(result.stdout, /AgentBar version +0\.1\.0/);
+  const { version } = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
+  assert.match(result.stdout, new RegExp(`AgentBar version +${version.replaceAll('.', '\\.')}`));
   assert.match(result.stdout, /~\/\.claude\/settings\.json/);
   assert.doesNotMatch(result.stdout + result.stderr, new RegExp(home.replaceAll('/', '\\/')));
   assert.match(result.stderr, /1 check failed: Claude hooks/);

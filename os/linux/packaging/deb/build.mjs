@@ -90,7 +90,7 @@ try {
   ].join('\n\n') + '\n');
   const date = new Date(epoch * 1000).toUTCString().replace('GMT', '+0000');
   await writeFile(join(doc, 'changelog.gz'), gzipSync(
-    `agentbar (${version}) unstable; urgency=medium\n\n  * Beta release candidate.\n\n -- ${maintainer}  ${date}\n`, { level: 9 },
+    `agentbar (${version}) unstable; urgency=medium\n\n  * See https://github.com/ameghcoder/agent-bar/blob/main/CHANGELOG.md\n\n -- ${maintainer}  ${date}\n`, { level: 9 },
   ));
 
   // Manual pages, gzipped without a name or timestamp in the header.
@@ -160,6 +160,9 @@ try {
   execFileSync('dpkg-deb', ['--root-owner-group', '-Zxz', '--build', tree, deb], {
     stdio: ['ignore', 'ignore', 'inherit'], env: { ...process.env, SOURCE_DATE_EPOCH: String(epoch) },
   });
+  // The checksum users verify before installing (the beta is unsigned).
+  const digest = createHash('sha256').update(await readFile(deb)).digest('hex');
+  await writeFile(`${deb}.sha256`, `${digest}  agentbar_${version}_all.deb\n`);
   console.log(deb);
 } finally {
   await rm(work, { recursive: true, force: true });
