@@ -129,3 +129,37 @@ test('a session reads alive while its process runs and ended once it is gone, wi
   assert.deepEqual(views.at(-1).liveness, { child: 'ended', reused: 'ended', plain: 'unknown' });
   assert.equal(views.at(-1).attentionCount, 1);
 });
+
+// T402: every interruption ends in an honest state without restarting
+// anything, and a persistent failure is reported once, not on every re-read.
+const interruptionsHarness = fileURLToPath(new URL('fixtures/gjs-interruptions-harness.js', import.meta.url));
+
+test('the reader recovers from every listed interruption and reports a persistent failure once', { skip: process.platform !== 'linux' }, async (t) => {
+  const { lines } = await runHarness(t, interruptionsHarness);
+  const steps = new Map();
+  let current = 'start';
+  for (const line of lines) {
+    if (line.kind === 'step') {
+      current = line.name;
+      steps.set(current, { skipped: line.skipped, lines: [] });
+    } else {
+      steps.get(current)?.lines.push(line);
+    }
+  }
+  const last = (name) => steps.get(name).lines.at(-1);
+  assert.deepEqual(last('valid').sessions, ['a']);
+  assert.deepEqual(last('deleted').sessions, [], 'a deleted file reads as no sessions');
+  assert.deepEqual(last('recreated').sessions, ['b']);
+  assert.equal(last('corrupted').kind, 'unavailable');
+  assert.equal(steps.get('corrupted').lines.filter((line) => line.kind === 'unavailable').length, 1,
+    'a file that stays corrupt across several re-reads is reported once');
+  if (!steps.get('unreadable').skipped) assert.match(last('unreadable').message, /Cannot read the state file/);
+  assert.deepEqual(last('readable-again').sessions, ['c']);
+  assert.deepEqual(last('rapid').sessions, ['d29'], 'a burst of writes settles on the last one');
+  assert.ok(steps.get('rapid').lines.length < 30, 'a burst is debounced, not rendered once per write');
+  assert.deepEqual(last('directory-removed').sessions, []);
+  assert.deepEqual(last('directory-recreated').sessions, ['e'], 'a recreated state directory is watched again');
+  assert.equal(last('clock-past-stale').stale, true, 'an active session goes stale with no new write');
+  assert.equal(last('clock-past-stale').status, 'running', 'stale keeps the observed status, never completed or failed');
+  assert.equal(last('fresh-event').stale, false, 'a later event clears staleness');
+});

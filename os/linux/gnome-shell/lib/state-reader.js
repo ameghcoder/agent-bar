@@ -60,6 +60,7 @@ export class StateWatcher {
     // presented without re-reading the file; null while state is unavailable.
     this._lastState = null;
     this._liveness = {};
+    this._reportedUnavailable = null;
     this._previousView = undefined;
     // Bumped by every read; a read whose number is no longer current drops its
     // result, so an older read finishing late cannot overwrite a newer view.
@@ -188,8 +189,13 @@ export class StateWatcher {
     this._unavailable(`State file is too large (${bytes} bytes, limit ${maxSnapshotBytes}).`);
   }
 
+  // The fallback timer re-reads every 30 s, so a file that stays broken would
+  // report (and the extension log) the same line forever. Each distinct
+  // message is reported once until a good read publishes a view again.
   _unavailable(message) {
     this._lastState = null;
+    if (message === this._reportedUnavailable) return;
+    this._reportedUnavailable = message;
     this._onUnavailable(message);
   }
 
@@ -237,6 +243,7 @@ export class StateWatcher {
   // nothing, even when earlier reads were unavailable, because nothing proves
   // its contents are newer than the reader (ADR 0004).
   _publish(view) {
+    this._reportedUnavailable = null;
     const notifications = notificationsFor(this._previousView, view);
     this._previousView = view;
     this._onView(view);

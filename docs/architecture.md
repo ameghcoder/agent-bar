@@ -282,6 +282,14 @@ succeeds. `error.matches(Gio.IOErrorEnum, Gio.IOErrorEnum.NOT_FOUND)` is what
 distinguishes the two cases; also verified directly against the real Gio
 error object, not assumed from its shape.
 
+Each distinct unavailable message is reported once, until a good read
+publishes a view again. Without this the 30-second fallback re-read would log
+the same line for as long as a file stays broken. `test/state-reader.test.mjs`
+drives the real watcher through deletion, recreation, corruption, an
+unreadable file, a burst of 30 writes, removal and recreation of the whole
+state directory, a clock crossing the stale threshold, and a fresh event
+clearing it.
+
 Each read takes a generation number, and a read that is no longer the newest
 drops its result. A debounced re-read and the fallback timer can overlap, and
 without this an older read finishing late could overwrite a newer view and
