@@ -90,6 +90,16 @@ Clicking a session in the menu brings its terminal or editor window to the front
 
 By default the extension reads `~/.local/state/agentbar/state.json`, same as the CLI. Setting `AGENTBAR_STATE_DIR` before GNOME Shell starts points it at another directory, for development.
 
+## Build the package
+
+```sh
+pnpm package:deb                                   # writes dist/package/agentbar_<version>_all.deb
+dpkg-deb --info dist/package/agentbar_*_all.deb    # metadata
+dpkg-deb --contents dist/package/agentbar_*_all.deb
+```
+
+The package installs `/usr/bin/agentbar`, `/usr/bin/agentbar-hook`, `/usr/lib/agentbar/`, and the extension under `/usr/share/gnome-shell/extensions/agentbar@ameghcoder.github.io/`. It depends on Ubuntu's `nodejs` (22.12 or newer) and has no install or removal scripts: it never touches your home directory, Claude settings, or AgentBar state. After installing, run `agentbar install-hooks --apply`, restart Claude Code, log out and in, and enable the extension. `apt remove agentbar` leaves your state and Claude settings alone; remove the hooks first with `agentbar uninstall-hooks --apply`. The maintainer field comes from `$DEB_MAINTAINER`, else your git identity; two builds of one commit are byte-identical (`SOURCE_DATE_EPOCH`, else the last commit's time). `lintian` is not part of the toolchain yet; install it (`sudo apt install lintian`) to lint the package.
+
 ## Diagnose
 
 ```sh

@@ -27,4 +27,6 @@ someone runs the test plan there and records the result in this table.
   fixed modes and `SOURCE_DATE_EPOCH` timestamps so two stages are identical.
   Runtime requirement: Ubuntu's `nodejs` (26.04 ships 22.22.1; AgentBar needs
   22.12 or newer).
-- `packaging/deb/`: added by the `.deb` milestone.
+- `packaging/deb/build.mjs`: builds `agentbar_<version>_all.deb` from the staged
+  tree with `dpkg-deb --root-owner-group`. No maintainer scripts. Run it with
+  `pnpm package:deb`.

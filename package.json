@@ -17,7 +17,8 @@
     "typecheck": "tsc --noEmit",
     "agentbar": "node dist/src/cli/index.js",
     "agentbar-hook": "node dist/agents/claude-code/hooks/claude-hook.js",
-    "test": "pnpm build && node --test test/*.test.mjs"
+    "test": "pnpm build && node --test test/*.test.mjs",
+    "package:deb": "node os/linux/packaging/deb/build.mjs dist/package"
   },
   "dependencies": {
     "commander": "^15.0.0",
