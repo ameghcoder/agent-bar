@@ -3,9 +3,7 @@
 AgentBar shows what your Claude Code sessions are doing in the GNOME top bar,
 so you can work in another window and still know when Claude needs you.
 
-```
-agent-bar - Working - just now +1
-```
+![AgentBar in the GNOME top bar: "agent-bar - Waiting for you - 3m ago", with the menu open showing a waiting session, an ended session, and the health line "Receiving events - last 3m ago"](assets/preview/agent-bar-preview.png)
 
 - **Top bar:** the session that matters most, its state, and how long ago it
   last did something, plus `+N` for other sessions that are working.
