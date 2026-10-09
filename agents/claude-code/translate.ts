@@ -23,13 +23,21 @@ function activity(type: EventType, raw: JsonObject): { status: Status; message: 
     case 'session_start': return { status: 'idle', message: 'Session started' };
     case 'pre_tool_use': return { status: 'running', message: `Preparing tool: ${tool}` };
     case 'post_tool_use': return { status: 'running', message: `Tool finished: ${tool}` };
-    case 'permission_request': return { status: 'permission_required', message: `Permission requested for ${tool}` };
+    // AskUserQuestion arrives as a permission request, but Claude is waiting
+    // for an answer, not for permission (decided after the T401 live run).
+    case 'permission_request': return tool === 'AskUserQuestion'
+      ? { status: 'waiting', message: 'Claude is asking you a question' }
+      : { status: 'permission_required', message: `Permission requested for ${tool}` };
     case 'stop': return { status: 'completed', message: 'Claude finished responding' };
     case 'session_end': return { status: 'idle', message: `Session ended: ${stringField(raw, 'reason') ?? 'unspecified'}` };
-    case 'error': return {
-      status: 'failed',
-      message: presentable(stringField(raw, 'error') ?? stringField(raw, 'error_details')) ?? 'Claude reported an error',
-    };
+    // A failed tool call is routine: Claude reads the error and carries on, so
+    // the session stays running and no "Failed" banner fires. Only a failed
+    // turn (StopFailure) is failed. Decided after the T401 live run.
+    case 'error': {
+      const detail = presentable(stringField(raw, 'error') ?? stringField(raw, 'error_details'));
+      if (stringField(raw, 'hook_event_name') === 'PostToolUseFailure') return { status: 'running', message: detail ?? `Tool failed: ${tool}` };
+      return { status: 'failed', message: detail ?? 'Claude reported an error' };
+    }
     case 'notification': {
       const kind = stringField(raw, 'notification_type');
       if (kind === 'permission_prompt') return { status: 'permission_required', message: 'Claude needs permission' };

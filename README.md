@@ -67,7 +67,7 @@ With `--apply`:
 
 Restart Claude Code after applying either command.
 
-`agents/claude-code/settings.example.json` is a portable template; replace its placeholder path or use the helper. Config structure and event names follow the [official Claude Code hook reference](https://code.claude.com/docs/en/hooks). It registers the seven matching lifecycle hooks and maps `PostToolUseFailure` and `StopFailure` to AgentBar's `error`; there is no invented Claude hook named `Error`. Older Claude versions may lack `StopFailure`.
+`agents/claude-code/settings.example.json` is a portable template; replace its placeholder path or use the helper. Config structure and event names follow the [official Claude Code hook reference](https://code.claude.com/docs/en/hooks). It registers the seven matching lifecycle hooks and maps `PostToolUseFailure` and `StopFailure` to AgentBar's `error`; there is no invented Claude hook named `Error`. Only `StopFailure` (a failed turn) reads as Failed: a failed tool call is routine, Claude carries on, so the session stays Working. A question from Claude (`AskUserQuestion`, which arrives as a permission request) reads as Waiting for you. Older Claude versions may lack `StopFailure`.
 
 ## GNOME Shell extension (development)
 

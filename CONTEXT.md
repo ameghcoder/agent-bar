@@ -37,11 +37,11 @@ project or window, and otherwise misses permission prompts and completion.
 | Status | Meaning | UI intent |
 | --- | --- | --- |
 | `idle` | Session started, resumed, or ended without current work. | Quiet neutral state. |
-| `running` | Claude is processing observable work or completed a tool and may continue. | Active, low-interruption state. |
-| `waiting` | Claude emitted an input/idle notification. | Attention requested. |
-| `permission_required` | Claude emitted a permission request or permission notification. | Highest-priority attention state. |
+| `running` | Claude is processing observable work, completed a tool, or had a tool call fail, and may continue. | Active, low-interruption state. |
+| `waiting` | Claude emitted an input/idle notification or asked the user a question. | Attention requested. |
+| `permission_required` | Claude emitted a permission request (other than a question) or permission notification. | Highest-priority attention state. |
 | `completed` | Claude emitted `Stop` for the current turn. | Notify once, then remain readable. |
-| `failed` | A tool or turn failure was observed. | Error attention state. |
+| `failed` | A turn failure was observed (`StopFailure`). A failed tool call is routine and stays `running`. | Error attention state. |
 | `unknown` | The event or readable state cannot be classified safely. | Honest fallback, never success. |
 
 Staleness is presentation metadata applied to an active state. It must be shown
