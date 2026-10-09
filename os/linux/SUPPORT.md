@@ -20,4 +20,11 @@ someone runs the test plan there and records the result in this table.
   `state-reader.js`.
 - `scripts/`: the build step that copies those modules, and the development
   helper (`extension-dev.sh install|enable|logs|pack|devkit`).
+- `packaging/stage.mjs`: stages the installed tree every Linux package is built
+  from (`usr/bin`, `usr/lib/agentbar` with only the runtime dependencies,
+  `usr/share/gnome-shell/extensions/<uuid>`). It compiles into a private
+  temporary directory, never the checkout's `dist/`, needs no network, and sets
+  fixed modes and `SOURCE_DATE_EPOCH` timestamps so two stages are identical.
+  Runtime requirement: Ubuntu's `nodejs` (26.04 ships 22.22.1; AgentBar needs
+  22.12 or newer).
 - `packaging/deb/`: added by the `.deb` milestone.
