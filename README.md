@@ -86,6 +86,8 @@ os/linux/scripts/extension-dev.sh devkit     # nested GNOME Shell for iteration 
 
 On Wayland a newly installed extension is picked up at the next login, and code changes to an already loaded extension need a logout/login or a nested session; `gnome-extensions enable`/`disable` themselves work live. `pnpm test` checks the metadata, that `extension.js` and `lib/state-reader.js` parse and import only `gi://`, `resource:///org/gnome/shell/`, or their own portable siblings, that the generated `lib/` files are exact copies of `dist/core/` and stay untouched by hand edits, and that packing actually includes `lib/` (`gnome-extensions pack` does not bundle subdirectories without `--extra-source`, which the script passes). It also drives the real `StateWatcher` under the real `gjs` runtime against real atomic renames of a temporary state file - not a mock - covering missing/valid/malformed/future-schema/recovered states and notification dedupe in one scripted run.
 
+Clicking a session in the menu brings its terminal or editor window to the front when AgentBar can name exactly one window for it (Linux, Claude Code passing `CLAUDE_PID`). With several windows of the same terminal or VS Code, it relies on the project name appearing in the window title; when it cannot tell, the row is not clickable and nothing is focused. A specific tab cannot be selected.
+
 By default the extension reads `~/.local/state/agentbar/state.json`, same as the CLI. Setting `AGENTBAR_STATE_DIR` before GNOME Shell starts points it at another directory, for development.
 
 ## Diagnose

@@ -110,3 +110,15 @@ test('extension.js shows the health line from the view and falls back to unavail
   assert.match(source, /_healthItem\.label\.text = view\.health/);
   assert.match(source, /_healthItem\.label\.text = 'State unavailable'/);
 });
+
+// T403: a row brings a window forward only through the never-guess matcher,
+// recomputed at click time, and a window title is never logged.
+test('extension.js focuses a session window only via pickWindow, rechecked on click, and never logs titles', async () => {
+  const source = await readFile(new URL('os/linux/gnome-shell/extension.js', root), 'utf8');
+  const focus = source.slice(source.indexOf('    _focusSession(sessionId) {'), source.indexOf('    disable() {'));
+  assert.match(focus, /this\._focusTarget\(sessionId\)/);
+  assert.match(focus, /Main\.activateWindow\(window\)/);
+  assert.equal((source.match(/Main\.activateWindow/g) ?? []).length, 1, 'activateWindow has one caller');
+  assert.match(source, /pickWindow\(ancestorsOf\(agent\.pid, readProcStat\), windows, projectName\)/);
+  assert.doesNotMatch(source, /console\.log\([^)]*title/i);
+});

@@ -24,17 +24,21 @@ function emptySnapshot(now) {
 // reused PID has a different start). Only that one file is read. The read is
 // synchronous, but procfs is generated from kernel memory, not disk I/O, and
 // it is one small file per session.
+export function readProcStat(pid) {
+  try {
+    const [, bytes] = GLib.file_get_contents(`/proc/${pid}/stat`);
+    return new TextDecoder().decode(bytes);
+  } catch {
+    return undefined;
+  }
+}
+
 function livenessOf(sessions) {
   const liveness = {};
   for (const session of sessions) {
     if (!session.agentProcess) continue;
-    let start;
-    try {
-      const [, bytes] = GLib.file_get_contents(`/proc/${session.agentProcess.pid}/stat`);
-      start = linuxStartToken(new TextDecoder().decode(bytes));
-    } catch {
-      start = undefined;
-    }
+    const stat = readProcStat(session.agentProcess.pid);
+    const start = stat === undefined ? undefined : linuxStartToken(stat);
     liveness[session.sessionId] = start === session.agentProcess.start ? 'alive' : 'ended';
   }
   return liveness;
@@ -182,6 +186,14 @@ export class StateWatcher {
         this._present(new TextDecoder().decode(contents));
       });
     });
+  }
+
+  // T403: the session's agent process, re-checked now so a PID the kernel has
+  // since reused never matches. null when unknown or gone.
+  processFor(sessionId) {
+    const session = this._lastState?.sessions.find((candidate) => candidate.sessionId === sessionId);
+    if (!session?.agentProcess) return null;
+    return livenessOf([session])[sessionId] === 'alive' ? session.agentProcess : null;
   }
 
   _readFailed(error) {

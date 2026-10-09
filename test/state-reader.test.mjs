@@ -169,3 +169,14 @@ test('the liveness timer runs only while some session recorded a process', { ski
   const { lines } = await robustness(t, 'liveness-timer');
   assert.deepEqual(lines.filter((line) => line.kind === 'timer').map((line) => line.running), [false, true, false]);
 });
+
+// T403: the window lookup starts from processFor and walks real /proc parents.
+const focusHarness = fileURLToPath(new URL('fixtures/gjs-focus-harness.js', import.meta.url));
+
+test('the parent chain is read from /proc, and only a still-running recorded process is handed out', { skip: process.platform !== 'linux' }, async (t) => {
+  const { lines } = await runHarness(t, focusHarness);
+  const chain = lines.find((line) => line.kind === 'chain').chain;
+  assert.equal(chain[1], process.pid, 'gjs was started by this test process, so it is the first ancestor');
+  assert.deepEqual(lines.find((line) => line.kind === 'process'), { kind: 'process', live: true, reused: null, missing: null });
+  assert.deepEqual(lines.find((line) => line.kind === 'after-exit'), { kind: 'after-exit', live: null });
+});

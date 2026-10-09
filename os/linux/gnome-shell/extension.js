@@ -1,5 +1,6 @@
 import Clutter from 'gi://Clutter';
 import GLib from 'gi://GLib';
+import Meta from 'gi://Meta';
 import Pango from 'gi://Pango';
 import St from 'gi://St';
 
@@ -9,7 +10,8 @@ import * as MessageTray from 'resource:///org/gnome/shell/ui/messageTray.js';
 import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 
-import {StateWatcher} from './lib/state-reader.js';
+import {ancestorsOf, pickWindow} from './lib/focus.js';
+import {StateWatcher, readProcStat} from './lib/state-reader.js';
 
 // Rendering only reads `intent` (T302's fixed vocabulary), never `status`, so
 // a new status can never appear in the top bar or a row without an explicit
@@ -103,11 +105,19 @@ export default class AgentBarExtension extends Extension {
         // _syncSessionRows and T304's "keep rows stable during refresh to
         // avoid visible layout jumping").
         this._rows = new Map();
+        // sessionId -> project name, for matching a window title (T403).
+        this._rowProjects = new Map();
         this._placeholder = new PopupMenu.PopupMenuItem('Reading state...', {reactive: false});
         this._indicator.menu.addMenuItem(this._placeholder);
         this._sessionsSection = new PopupMenu.PopupMenuSection();
         this._indicator.menu.addMenuItem(this._sessionsSection);
         this._buildFooter();
+        // T403: which rows can bring a window forward is decided each time the
+        // menu opens, because windows open and close while it is shut.
+        this._indicator.menu.connect('open-state-changed', (_menu, open) => {
+            if (open)
+                this._syncClickableRows();
+        });
 
         Main.panel.addToStatusArea(this.uuid, this._indicator);
 
@@ -280,11 +290,18 @@ export default class AgentBarExtension extends Extension {
             seen.add(session.sessionId);
             let item = this._rows.get(session.sessionId);
             if (!item) {
-                item = new PopupMenu.PopupImageMenuItem(sessionRowText(session), ICON_BY_INTENT[session.intent] ?? ICON_BY_INTENT.unknown, {reactive: false});
+                // Built activatable but left insensitive until a window is
+                // found: the inactive style keeps today's look either way.
+                item = new PopupMenu.PopupImageMenuItem(sessionRowText(session), ICON_BY_INTENT[session.intent] ?? ICON_BY_INTENT.unknown);
+                item.add_style_class_name('popup-inactive-menu-item');
+                item.setSensitive(false);
                 ellipsizeRow(item);
-                this._rows.set(session.sessionId, item);
+                const sessionId = session.sessionId;
+                item.connect('activate', () => this._focusSession(sessionId));
+                this._rows.set(sessionId, item);
                 this._sessionsSection.addMenuItem(item);
             }
+            this._rowProjects.set(session.sessionId, session.projectName);
             item.label.text = sessionRowText(session);
             item.setIcon(ICON_BY_INTENT[session.intent] ?? ICON_BY_INTENT.unknown);
             for (const styleClass of Object.values(STYLE_CLASS_BY_INTENT)) item.remove_style_class_name(styleClass);
@@ -297,8 +314,37 @@ export default class AgentBarExtension extends Extension {
             if (!seen.has(sessionId)) {
                 item.destroy();
                 this._rows.delete(sessionId);
+                this._rowProjects.delete(sessionId);
             }
         }
+    }
+
+    // The window running a session's agent, or null. Reads only
+    // /proc/<pid>/stat up the process chain; window titles are matched here
+    // and never logged or stored.
+    _focusTarget(sessionId) {
+        const agent = this._watcher?.processFor(sessionId);
+        if (!agent)
+            return null;
+        const windows = global.get_window_actors()
+            .map(actor => actor.get_meta_window())
+            .filter(window => window && window.get_window_type() === Meta.WindowType.NORMAL && !window.is_skip_taskbar())
+            .map(window => ({pid: window.get_pid(), title: window.get_title() ?? '', window}));
+        const projectName = this._rowProjects.get(sessionId) ?? '';
+        return pickWindow(ancestorsOf(agent.pid, readProcStat), windows, projectName)?.window ?? null;
+    }
+
+    _syncClickableRows() {
+        for (const [sessionId, item] of this._rows)
+            item.setSensitive(this._focusTarget(sessionId) !== null);
+    }
+
+    // Looked up again at click time: the window found when the menu opened
+    // may have closed since.
+    _focusSession(sessionId) {
+        const window = this._focusTarget(sessionId);
+        if (window)
+            Main.activateWindow(window);
     }
 
     disable() {
@@ -312,6 +358,7 @@ export default class AgentBarExtension extends Extension {
         this._stSettings = null;
         this._lastView = null;
         this._rows?.clear();
+        this._rowProjects?.clear();
         this._notificationSource?.destroy();
         this._notificationSource = null;
         this._indicator?.destroy();

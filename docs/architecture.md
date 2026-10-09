@@ -169,6 +169,21 @@ still goes stale after 10 minutes, because a running process proves Claude is
 open, not that it is working; its menu row adds "Claude open". Only
 `/proc/<pid>/stat` is ever read, never `cmdline` or `environ`.
 
+### Bringing a session's window forward (T403)
+
+When the menu opens, each row whose session has a live `agentProcess` looks
+for the window running it. `lib/focus.js` (pure, import-free) walks the
+process's parents through `/proc/<pid>/stat` and takes the nearest ancestor
+that owns a window. If that process owns one window, it is the target. Ptyxis,
+GNOME Terminal, and VS Code run every window from one process; then only a
+window whose title names the project as a whole word is picked, and if that is
+not exactly one window, nothing is. A row with a target is clickable; the
+lookup runs again at click time and calls `Main.activateWindow()`. Every other
+row keeps its read-only look. AgentBar never focuses a window it is unsure of:
+a wrong window coming forward is worse than none. Tabs are out of reach (no
+public API), so the window comes forward with whichever tab was last active.
+Window titles are matched in the Shell process and never logged or stored.
+
 ### Retention
 
 Separate from staleness: a session whose `lastSeenAt` is more than 24 hours
