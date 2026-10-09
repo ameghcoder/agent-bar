@@ -154,21 +154,50 @@ extension and the Node tests run the exact same rules.
 ## Session states
 
 ```mermaid
-stateDiagram-v2
-    [*] --> Idle: SessionStart
-    Idle --> Working: PreToolUse
-    Working --> Working: PostToolUse, failed tool call
-    Working --> PermissionNeeded: permission prompt
-    Working --> WaitingForYou: idle prompt, question
-    PermissionNeeded --> Working: next tool event
-    WaitingForYou --> Working: next tool event
-    Working --> TurnComplete: Stop
-    Working --> Failed: StopFailure
-    TurnComplete --> Working: next prompt's first tool
-    Failed --> Working: next tool event
-    TurnComplete --> Idle: SessionEnd
-    Idle --> [*]: no event for 24 h
+flowchart LR
+    start(("start")) -- "SessionStart" --> Idle
+    Idle -- "first tool call" --> Working
+
+    subgraph NeedsYou["Needs you"]
+        direction TB
+        Permission["Permission needed"]
+        Waiting["Waiting for you"]
+    end
+
+    subgraph TurnOver["Turn over"]
+        direction TB
+        Complete["Turn complete"]
+        Failed["Failed"]
+    end
+
+    Working -- "permission prompt" --> Permission
+    Working -- "idle prompt<br/>or question" --> Waiting
+    Working -- "Stop" --> Complete
+    Working -- "StopFailure" --> Failed
+
+    Permission -.-> Working
+    Waiting -.-> Working
+    Complete -.-> Working
+    Failed -.-> Working
+
+    Complete -- "SessionEnd" --> Closed["Idle<br/>(session closed)"]
+
+    classDef attention fill:#fff4d6,stroke:#c98a00,color:#3d2a00
+    classDef active fill:#e3f0ff,stroke:#2f6fd0,color:#0b2a55
+    classDef done fill:#e6f6ea,stroke:#2e8b47,color:#0f3a1c
+    classDef error fill:#fde8e8,stroke:#c43c3c,color:#4a0d0d
+    classDef quiet fill:#f0f0f0,stroke:#888,color:#222
+    class Permission,Waiting attention
+    class Working active
+    class Complete done
+    class Failed error
+    class Idle,Closed quiet
 ```
+
+Solid arrows are the hook that moves a session forward. Dotted arrows are the
+way back: the next tool event returns any of these states to Working, and
+more tool calls keep it there, including one that fails. A session with no
+event for 24 hours disappears, whatever its state.
 
 Two things sit on top of these states. They are worked out when the view is
 drawn and never saved:
