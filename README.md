@@ -195,6 +195,8 @@ extension, connected only by a local JSON file.
   presentation rules.
 - [docs/adr/](docs/adr/): the decisions behind the design.
 - [docs/testing.md](docs/testing.md): the release check.
+- [docs/support.md](docs/support.md): getting help, known issues, and how
+  reports are triaged.
 - [CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md).
 - [contract/](contract/): the language-neutral data contract.
 - Adding support for another coding agent? Start with

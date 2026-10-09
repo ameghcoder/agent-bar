@@ -1,0 +1,60 @@
+name: Beta feedback
+description: Tell us how AgentBar fits your day - what helped, what got in the way, what is missing.
+labels: ["needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for trying the AgentBar beta. For something that is broken,
+        use the bug report form instead. Please do not paste prompts,
+        commands, or the contents of `~/.local/state/agentbar/`.
+  - type: input
+    id: agentbar
+    attributes:
+      label: AgentBar version
+      description: Output of `agentbar --version`
+      placeholder: 0.2.0
+    validations:
+      required: true
+  - type: input
+    id: system
+    attributes:
+      label: Ubuntu and GNOME versions
+      description: Output of `lsb_release -ds; gnome-shell --version`
+    validations:
+      required: true
+  - type: dropdown
+    id: sessions
+    attributes:
+      label: How many Claude Code sessions do you usually run at once?
+      options:
+        - "1"
+        - 2-3
+        - 4 or more
+    validations:
+      required: true
+  - type: textarea
+    id: helped
+    attributes:
+      label: What helped
+      description: A moment where AgentBar saved you a context switch, or told you something you needed.
+  - type: textarea
+    id: friction
+    attributes:
+      label: What got in the way or confused you
+      description: Wording, timing, too many or too few notifications, install steps, anything.
+  - type: textarea
+    id: missing
+    attributes:
+      label: What is missing
+  - type: dropdown
+    id: keep
+    attributes:
+      label: Will you keep it installed?
+      options:
+        - "Yes"
+        - Probably
+        - Not sure
+        - "No"
+    validations:
+      required: true
