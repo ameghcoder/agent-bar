@@ -9,7 +9,7 @@ its code genuinely diverges.
 |---|---|---|---|---|---|---|
 | Ubuntu | 26.04.1 LTS | amd64 | GNOME Shell 50.1 | Wayland | Source checkout, live Claude Code 2.1.295 | Tested (development machine) |
 | Ubuntu | 26.04.1 LTS | amd64 | GNOME Shell 50.1 | Wayland | `.deb` in a throwaway dpkg root (automated) | Tested (package lifecycle only) |
-| Ubuntu | not yet recorded | | | | `.deb` via App Center, second machine | Extension works after login (owner report); version and doctor output pending |
+| Ubuntu | 26.04.1 LTS | not recorded | GNOME Shell 50.1 | Wayland | `.deb` (0.1.0 release candidate) via App Center, second machine with Node 24 from a version manager | Tested by the owner: `agentbar doctor` all PASS; extension works after one login |
 
 The release regression in `docs/testing.md` is what moves a row to "Tested".
 

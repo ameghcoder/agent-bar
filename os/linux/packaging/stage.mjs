@@ -85,9 +85,14 @@ try {
       await cp(directory, join(lib, 'node_modules', name), {
         recursive: true,
         dereference: true,
-        // Nested node_modules are handled by the recursion; typings and source
-        // maps are not needed at runtime.
-        filter: (path) => !relative(directory, path).split('/').includes('node_modules') && !/\.(d\.ts|map)$/.test(path),
+        // Nested node_modules are handled by the recursion. Typings, source
+        // maps, dotfiles (.npmignore, ...), Markdown docs and images are not
+        // needed at runtime; license files stay with the code they cover.
+        filter: (path) => {
+          const parts = relative(directory, path).split('/');
+          return !parts.includes('node_modules') && !parts.some((part) => part.startsWith('.'))
+            && !/\.(d\.ts|map|md|gif|png|jpe?g|svg)$/i.test(path) && parts[0] !== 'typings';
+        },
       });
       await copyDependencies(directory, meta.dependencies);
     }

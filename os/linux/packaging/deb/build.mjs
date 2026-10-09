@@ -11,7 +11,7 @@
 // builds of one commit are byte-identical.
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { chmod, lstat, mkdir, mkdtemp, readdir, readFile, rm, utimes, writeFile } from 'node:fs/promises';
+import { chmod, copyFile, lstat, lutimes, mkdir, mkdtemp, readdir, readFile, rm, utimes, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -92,13 +92,30 @@ try {
   await writeFile(join(doc, 'changelog.gz'), gzipSync(
     `agentbar (${version}) unstable; urgency=medium\n\n  * Beta release candidate.\n\n -- ${maintainer}  ${date}\n`, { level: 9 },
   ));
-  for (const file of ['copyright', 'changelog.gz']) {
-    await chmod(join(doc, file), 0o644);
-    await utimes(join(doc, file), epoch, epoch);
+
+  // Manual pages, gzipped without a name or timestamp in the header.
+  const man = join(tree, 'usr/share/man/man1');
+  await mkdir(man, { recursive: true });
+  for (const page of ['agentbar.1', 'agentbar-hook.1']) {
+    await writeFile(join(man, `${page}.gz`), gzipSync(await readFile(join(root, 'os/linux/packaging/deb/man', page)), { level: 9 }));
   }
-  for (const directory of ['usr/share/doc/agentbar', 'usr/share/doc', 'usr/share']) {
-    await chmod(join(tree, directory), 0o755);
-    await utimes(join(tree, directory), epoch, epoch);
+
+  // Lintian overrides, each with its reason in the file.
+  const overrides = join(tree, 'usr/share/lintian/overrides');
+  await mkdir(overrides, { recursive: true });
+  await copyFile(join(root, 'os/linux/packaging/deb/lintian-overrides'), join(overrides, 'agentbar'));
+
+  // One pass over everything added here: directories and executables 0755
+  // (stage set those), other files 0644, every entry at SOURCE_DATE_EPOCH.
+  for (const name of (await readdir(tree, { recursive: true })).sort().reverse()) {
+    const path = join(tree, name);
+    const info = await lstat(path);
+    if (info.isSymbolicLink()) {
+      await lutimes(path, epoch, epoch);
+      continue;
+    }
+    await chmod(path, info.isDirectory() || (info.mode & 0o111) ? 0o755 : 0o644);
+    await utimes(path, epoch, epoch);
   }
 
   // DEBIAN/: md5sums of regular files, and the control file.

@@ -1,0 +1,22 @@
+.TH AGENTBAR-HOOK 1 "" "agentbar" "User Commands"
+.SH NAME
+agentbar-hook \- record one Claude Code hook event for AgentBar
+.SH SYNOPSIS
+.B agentbar-hook \-\-event
+.I type
+< payload.json
+.SH DESCRIPTION
+Run by Claude Code, not by hand. Reads one hook payload as JSON on standard
+input and records it in AgentBar's local state, which the GNOME Shell extension
+displays. It writes nothing to standard output and exits 1, never 2, on
+failure, so it can never block or approve anything in Claude Code.
+.PP
+.I type
+is one of session_start, pre_tool_use, post_tool_use, notification,
+permission_request, stop, session_end, error.
+.SH FILES
+.I ~/.local/state/agentbar/state.json
+and
+.IR ~/.local/state/agentbar/events.jsonl .
+.SH SEE ALSO
+.BR agentbar (1)

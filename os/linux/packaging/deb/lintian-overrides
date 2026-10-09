@@ -1,0 +1,7 @@
+# Node.js packages keep their code in lib/, so a bundled dependency under
+# /usr/lib/agentbar/node_modules/<name>/lib/ repeats the segment by design.
+agentbar: repeated-path-segment lib [usr/lib/agentbar/node_modules/*/lib/]
+# The bundled MIT and ISC licenses require their notices to travel with the
+# code they cover; /usr/share/doc/agentbar/copyright carries the same texts.
+agentbar: extra-license-file [usr/lib/agentbar/node_modules/*]
+agentbar: package-contains-documentation-outside-usr-share-doc [usr/lib/agentbar/node_modules/*]

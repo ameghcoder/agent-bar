@@ -1,0 +1,57 @@
+.TH AGENTBAR 1 "" "agentbar" "User Commands"
+.SH NAME
+agentbar \- connect Claude Code to the AgentBar GNOME top-bar indicator
+.SH SYNOPSIS
+.B agentbar install-hooks
+.RB [ \-\-apply ]
+.RB [ \-\-settings
+.IR path ]
+.br
+.B agentbar uninstall-hooks
+.RB [ \-\-apply ]
+.RB [ \-\-settings
+.IR path ]
+.br
+.B agentbar doctor
+.RB [ \-\-settings
+.IR path ]
+.SH DESCRIPTION
+AgentBar shows what each Claude Code session is doing in the GNOME Shell top
+bar. Claude Code reports its activity through hooks; this command adds, removes,
+and checks those hooks. Nothing leaves the machine.
+.SH COMMANDS
+.TP
+.B install-hooks
+Print the hook configuration AgentBar would add to Claude Code's settings and
+change nothing. With
+.BR \-\-apply ,
+back up the settings file next to itself, then add one AgentBar handler per
+Claude Code hook event, keeping every other setting and hook.
+.TP
+.B uninstall-hooks
+Preview, or with
+.B \-\-apply
+remove, only the handlers AgentBar added.
+.TP
+.B doctor
+Check the installation read-only and print one PASS, WARN, or FAIL line per
+check. Exits 1 if a required check fails. The output names no session,
+project, or settings content.
+.SH FILES
+.TP
+.I ~/.claude/settings.json
+Claude Code settings, or
+.I $CLAUDE_CONFIG_DIR/settings.json
+when that variable is set.
+.TP
+.I ~/.local/state/agentbar/
+AgentBar state: the current snapshot and the event history.
+.SH NOTES
+After installing hooks, restart Claude Code. A newly installed GNOME extension
+is found at the next login; enable it with
+.BR "gnome-extensions enable agentbar@ameghcoder.github.io" .
+Removing the package leaves the hooks and state in place; run
+.B agentbar uninstall-hooks \-\-apply
+first.
+.SH SEE ALSO
+.BR agentbar-hook (1)

@@ -45,7 +45,7 @@ test('the package holds only system paths, owned by root, and no maintainer scri
   const contents = (await run('dpkg-deb', ['--contents', deb])).stdout.trim().split('\n');
   const paths = contents.map((line) => line.split(/\s+/).slice(5).join(' '));
   assert.ok(contents.every((line) => line.split(/\s+/)[1] === 'root/root'), 'every entry is root/root');
-  assert.ok(paths.every((path) => /^\.\/(usr\/(bin|lib\/agentbar|share\/gnome-shell\/extensions\/agentbar@ameghcoder\.github\.io|share\/doc\/agentbar)(\/|$| ->)|usr\/?$|usr\/(lib|share|share\/gnome-shell|share\/gnome-shell\/extensions|share\/doc)\/$|\.\/$)/.test(path) || path === './'), paths.join('\n'));
+  assert.ok(paths.every((path) => /^\.\/(usr\/(bin|lib\/agentbar|share\/gnome-shell\/extensions\/agentbar@ameghcoder\.github\.io|share\/doc\/agentbar|share\/man\/man1\/agentbar(-hook)?\.1\.gz|share\/lintian\/overrides\/agentbar)(\/|$| ->)|usr\/?$|usr\/(lib|share|share\/gnome-shell|share\/gnome-shell\/extensions|share\/doc|share\/man|share\/man\/man1|share\/lintian|share\/lintian\/overrides)\/$|\.\/$)/.test(path) || path === './'), paths.join('\n'));
   assert.ok(!paths.some((path) => /home|root\//.test(path)));
   assert.ok(paths.includes('./usr/share/doc/agentbar/copyright'));
   assert.ok(paths.includes('./usr/share/doc/agentbar/changelog.gz'));
@@ -102,4 +102,21 @@ test('the copyright file has a standalone paragraph for every license it names',
   assert.match(text, /\n\nLicense: ISC\n Permission to use, copy, modify, and\/or distribute this software/);
   assert.match(text, /\nLicense: MIT\n Permission is hereby granted, free of charge/);
   assert.doesNotMatch(text, /Full text in the LICENSE file/);
+});
+
+// T504 follow-up: Debian's own checker, run whenever it is installed. Every
+// remaining tag is either fixed or overridden with a written reason in
+// os/linux/packaging/deb/lintian-overrides.
+const hasLintian = await run('lintian', ['--version']).then(() => true, () => false);
+test('lintian reports no error, warning, or pedantic tag', { skip: skip || !hasLintian }, async (t) => {
+  const deb = await build(t);
+  const result = await run('lintian', ['--pedantic', deb]).catch((error) => error);
+  assert.equal(result.stdout.trim(), '', result.stdout);
+});
+
+test('man pages ship for both commands', { skip }, async (t) => {
+  const deb = await build(t);
+  const contents = (await run('dpkg-deb', ['--contents', deb])).stdout;
+  assert.match(contents, /\.\/usr\/share\/man\/man1\/agentbar\.1\.gz/);
+  assert.match(contents, /\.\/usr\/share\/man\/man1\/agentbar-hook\.1\.gz/);
 });
