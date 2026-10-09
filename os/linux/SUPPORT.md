@@ -9,7 +9,7 @@ its code genuinely diverges.
 |---|---|---|---|---|---|---|
 | Ubuntu | 26.04.1 LTS | amd64 | GNOME Shell 50.1 | Wayland | Source checkout, live Claude Code 2.1.295 | Tested (development machine) |
 | Ubuntu | 26.04.1 LTS | amd64 | GNOME Shell 50.1 | Wayland | `.deb` in a throwaway dpkg root (automated) | Tested (package lifecycle only) |
-| Ubuntu | 26.04.1 LTS | not recorded | GNOME Shell 50.1 | Wayland | `.deb` (0.1.0 release candidate) via App Center, second machine with Node 24 from a version manager | Tested by the owner: `agentbar doctor` all PASS; extension works after one login |
+| Ubuntu | 26.04.1 LTS | not recorded | GNOME Shell 50.1 | Wayland | `.deb` (0.1.0 release candidate) via App Center, second machine with Node 24 from a version manager | Tested by the owner: extension works after one login; after the T504 fix, reinstall + `install-hooks --apply` replaced all 9 hooks (backup written) and `agentbar doctor` passes on Ubuntu's Node 22.22.1 |
 
 The release regression in `docs/testing.md` is what moves a row to "Tested".
 
