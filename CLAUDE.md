@@ -19,13 +19,15 @@ silently rewrite either side.
 
 ## Current baseline
 
-The TypeScript capture layer already exists. It accepts normalized hook events,
-reads JSON from stdin, preserves the raw payload, writes an atomic multi-session
-snapshot to the XDG state directory, appends JSONL history, locks concurrent
-writes, and has nine passing integration tests. Preserve those guarantees.
+AgentBar 0.2.0 is released on GitHub as an unsigned `.deb`: the Claude Code
+hook adapter, atomic multi-session capture (raw payload kept, history capped
+at 10 MiB, concurrent writes locked), the GNOME Shell 50 extension with
+liveness and click-to-focus, preview-first hook install, and `agentbar
+doctor`. The suite covers these guarantees and the dependency direction in
+ADR 0007; preserve both.
 
-The next product frontier is safe real hook installation, a versioned reader
-contract, and the GNOME Shell extension. Do not rebuild the capture layer.
+Changes now reach real users: every published build gets a new version, a
+`CHANGELOG.md` entry, and release notes in `docs/release-notes/`.
 
 ## Product invariants
 
@@ -57,7 +59,8 @@ contract, and the GNOME Shell extension. Do not rebuild the capture layer.
 - Treat malformed, missing, oversized, or newer-schema state as recoverable UI
   conditions. The extension must not crash GNOME Shell.
 - Do not read Claude transcripts or infer hidden reasoning.
-- Avoid broad refactors during the one-week beta build.
+- Keep each change scoped to its issue; a broad refactor gets its own issue
+  first.
 
 ## Validation
 
@@ -76,9 +79,22 @@ Never claim a command passed unless it was run in the current worktree.
 
 ### Issue tracker
 
-Work is tracked as GitHub issues in `ameghcoder/agent-bar` via `gh`.
-`.temp/tasks.md` is the evidence log and schedule only, not a source of
-truth for status or blockers. See `docs/agents/issue-tracker.md`.
+Work is tracked as GitHub issues in the public repository
+`ameghcoder/agent-bar` via `gh`. Outside contributors read every issue and
+comment, so before you create, comment on, or close one, follow "Writing for
+a public tracker" in `docs/agents/issue-tracker.md`. The rules every issue
+keeps:
+
+- An issue is for a change to AgentBar itself: code, docs, packaging, tests.
+  Work that lives outside the repository (launch videos, marketing, local
+  tooling) is tracked in `.temp/` only.
+- An issue stands on its own: problem, why it matters, the change, and
+  acceptance criteria, readable by a stranger with only the repository.
+- A closing comment says what landed (commits), how it was verified, and
+  which release ships it.
+
+`.temp/tasks.md` is the maintainer's local schedule and evidence log. It adds
+detail to an issue; the issue carries everything a reader needs.
 
 ### Triage labels
 
@@ -100,19 +116,19 @@ decisions live in `docs/adr/`. See `docs/agents/domain.md`.
 - `/code-review`: review every milestone diff against standards and task scope.
 - `/to-tickets`: split newly approved scope into GitHub issues using the task
   ID and label conventions in `docs/agents/issue-tracker.md`.
-- `/improve-codebase-architecture`: run after the beta, not during P0 delivery,
-  unless a concrete design problem blocks progress.
+- `/improve-codebase-architecture`: run when a concrete design problem shows
+  up, and track the result in its own issue.
 
 ## Task discipline
 
 - Work on one task ID at a time.
 - Respect `Blocked by` edges.
-- P0 tasks are the launch path. P1 and P2 do not block beta unless promoted by
-  the user.
+- P0 is what the next release needs. P1 and P2 wait unless the user promotes
+  them.
 - Update task status as `todo`, `in_progress`, `blocked`, or `done`.
 - A task is `done` only after its acceptance criteria and evidence are complete.
 - At milestone gates, stop and give the user a short demo-oriented report.
-- Per task: create or claim the GitHub issue, implement, run the full suite,
-  commit locally with `Closes #n`. Never `git push`. The user reviews the code
-  and pushes manually.
+- Per task: create (following the issue rules above) or claim the GitHub
+  issue, implement, run the full suite, commit locally with `Closes #n`.
+  Never `git push`. The user reviews the code and pushes manually.
 

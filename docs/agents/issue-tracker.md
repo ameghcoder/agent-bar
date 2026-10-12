@@ -13,6 +13,71 @@ Issues and specs for this repo live as GitHub issues. Use the `gh` CLI for all o
 
 Infer the repo from `git remote -v`; `gh` does this automatically when run inside a clone.
 
+## Writing for a public tracker
+
+The repository is public: every issue, comment, and closing note is part of
+the project's record, read by contributors who were never in the
+conversation that produced it. Write each one as documentation for them.
+
+### When to open an issue
+
+Open one for a change to AgentBar itself: a bug, a feature, a docs or
+packaging change, a test gap, or approved scope split with `/to-tickets`.
+A small fix made inside an existing task's commit rides on that task's issue.
+Work kept outside the repository (launch videos, marketing assets, the
+maintainer's local scripts) is tracked in `.temp/` and gets no issue.
+
+### Title
+
+The outcome in plain words, as an imperative: "Cap the event history at
+10 MB". The issue number is the identifier; local schedule IDs from `.temp/`
+stay out of titles.
+
+### Body
+
+```markdown
+## Problem
+What is wrong or missing, who runs into it, and how to see it
+(steps, a command, or an example).
+
+## Why it matters
+The user-visible effect or the risk.
+
+## Change
+What will be done, and which files or modules it touches.
+
+## Acceptance criteria
+- [ ] Observable, testable outcomes.
+
+## Context
+Related ADRs, docs, and issues; the supported environment where relevant.
+```
+
+Keep the body self-contained:
+
+- Summarise evidence in the issue (the command run and its result, the
+  environment) rather than pointing at `.temp/` or a chat.
+- Record a maintainer decision as the decision plus its reason, e.g.
+  "Failed tool calls stay Working: Claude carries on after them."
+- Use generic examples: `/home/dev/project`, placeholder session IDs. Real
+  home paths, email addresses, tokens, prompts, transcript content, and
+  `events.jsonl` excerpts stay off the tracker.
+- Link the ADR when the change makes or follows a design decision.
+
+### Comments and closing
+
+- A scope change or decision gets a comment with its reason, so the thread
+  reads correctly start to finish.
+- A closing comment states what landed (commit hashes or PR), how it was
+  verified (tests, commands, the environment of any manual check), and the
+  release that ships it.
+- Closing without the work done uses the triage vocabulary
+  (`docs/agents/triage-labels.md`) and one line of reason.
+- When an issue's body turns out wrong, edit the body so it stays the source
+  of truth, and note the edit in a comment. An issue opened by mistake is
+  closed as not planned with a one-line reason; delete one only when it
+  exposes private data.
+
 ## Pull requests as a triage surface
 
 **PRs as a request surface: no.** _(Set to `yes` if this repo treats external PRs as feature requests; `/triage` reads this flag.)_
