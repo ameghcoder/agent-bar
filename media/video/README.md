@@ -7,7 +7,9 @@ menu text in it was produced by AgentBar's own presentation model. The
 voice-over was generated with Gemini text-to-speech.
 
 `agentbar-launch-poster.jpg` is a frame from the video, used as the README
-thumbnail.
+thumbnail. The video is published at https://youtu.be/XnhgjNQLooQ, which is
+where the README links, since GitHub cannot play video files from a
+repository.
 
 The video is released under the repository's MIT license, except for the
 third-party fonts, icons, and logos it shows, which keep their own licenses

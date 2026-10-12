@@ -7,9 +7,9 @@ In the top-right corner of GNOME, AgentBar looks like this:
 
 ![AgentBar in the GNOME top bar: "agent-bar - Waiting for you - 3m ago", with the menu open showing a waiting session, an ended session, and the health line "Receiving events - last 3m ago"](assets/preview/agent-bar-preview.png)
 
-**Watch the 60-second launch video**: an animated recreation of AgentBar 0.2.0, with voice-over.
+**Watch the 60-second launch video on YouTube** (an animated recreation of AgentBar 0.2.0, with voice-over):
 
-[![AgentBar launch video: "Permission needed" for agent-bar, in the top bar and as a GNOME banner](media/video/agentbar-launch-poster.jpg)](media/video/agentbar-launch.mp4)
+[![AgentBar launch video: "Permission needed" for agent-bar, in the top bar and as a GNOME banner. Click to play on YouTube.](media/video/agentbar-launch-poster.jpg)](https://youtu.be/XnhgjNQLooQ)
 
 - **Top bar:** the session that matters most, its state, and how long ago it
   last did something, plus `+N` for other sessions that are working.
