@@ -1,17 +1,15 @@
 # Launch video
 
-`agentbar-launch.mp4` is a 59.5-second, 1920x1080 launch video for AgentBar
-0.2.0. It is an animated recreation, not a screen recording: every desktop
-frame is labelled "Animated recreation of AgentBar 0.2.0", and the top-bar and
-menu text in it was produced by AgentBar's own presentation model. The
-voice-over was generated with Gemini text-to-speech.
+The AgentBar 0.2.0 launch video is a 59.5-second, 1920x1080 video published
+at https://youtu.be/XnhgjNQLooQ. It is an animated recreation, not a screen
+recording: every desktop frame is labelled "Animated recreation of AgentBar
+0.2.0", and the top-bar and menu text in it was produced by AgentBar's own
+presentation model. The voice-over was generated with Gemini text-to-speech.
 
 `agentbar-launch-poster.jpg` is a frame from the video, used as the README
-thumbnail. The video is published at https://youtu.be/XnhgjNQLooQ, which is
-where the README links, since GitHub cannot play video files from a
-repository.
+thumbnail that links to it.
 
-The video is released under the repository's MIT license, except for the
+The video and its poster are released under the repository's MIT license, except for the
 third-party fonts, icons, and logos it shows, which keep their own licenses
 and trademarks:
 
