@@ -1,5 +1,7 @@
 # AgentBar
 
+[![CI](https://github.com/ameghcoder/agent-bar/actions/workflows/ci.yml/badge.svg)](https://github.com/ameghcoder/agent-bar/actions/workflows/ci.yml)
+
 AgentBar shows what your Claude Code sessions are doing in the GNOME top bar,
 so you can work in another window and still know when Claude needs you.
 

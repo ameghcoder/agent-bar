@@ -1,0 +1,86 @@
+# Runs the release checks on every push to main and every pull request, on
+# the system AgentBar supports: Ubuntu 26.04 with Ubuntu's own nodejs, gjs,
+# dpkg, and lintian. Publishing a release stays manual.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# Read-only token, no secrets: pull requests from forks run the same checks
+# with nothing to leak.
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  checks:
+    # Every run repeats the full suite, so a timing-dependent test shows up as
+    # one red run among green ones. Run 1 also builds and checks the package.
+    name: checks (run ${{ matrix.run }})
+    runs-on: ubuntu-26.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        run: [1, 2, 3, 4, 5]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # gnome-shell provides `gnome-extensions pack`, which validates the
+      # extension in test/extension.test.mjs.
+      - name: Install Ubuntu's runtime and test tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends nodejs gjs lintian gnome-shell unzip
+
+      # The runner ships its own newer Node on PATH. The package depends on
+      # Ubuntu's nodejs, so the tests run on that one. pnpm is the version in
+      # package.json's packageManager; Ubuntu's corepack is too old to run
+      # pnpm 11, so npm installs it.
+      - name: Use Ubuntu's Node and pnpm
+        run: |
+          bin="$RUNNER_TEMP/ubuntu-node"
+          mkdir -p "$bin"
+          ln -s /usr/bin/node "$bin/node"
+          npm install --global --no-fund --no-audit --prefix "$RUNNER_TEMP/pnpm" \
+            "$(/usr/bin/node -p "require('./package.json').packageManager")"
+          echo "$bin" >> "$GITHUB_PATH"
+          echo "$RUNNER_TEMP/pnpm/bin" >> "$GITHUB_PATH"
+
+      - name: Show versions
+        run: |
+          test "$(command -v node)" = "$RUNNER_TEMP/ubuntu-node/node"
+          node --version
+          pnpm --version
+          gjs --version
+          dpkg-query --show --showformat='lintian ${Version}\n' lintian
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm test
+
+      # The build's own maintainer field would come from a git identity the
+      # runner does not have; CI packages are never published.
+      - name: Build the package twice and compare
+        if: matrix.run == 1
+        env:
+          DEB_MAINTAINER: AgentBar CI <ci@example.invalid>
+        run: |
+          pnpm package:deb
+          mv dist/package "$RUNNER_TEMP/first-build"
+          pnpm package:deb
+          cmp "$RUNNER_TEMP"/first-build/*.deb dist/package/*.deb
+          cd dist/package
+          sha256sum --check ./*.sha256

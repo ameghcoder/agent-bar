@@ -19,6 +19,8 @@ pnpm test
 
 Build again after changing TypeScript. `pnpm typecheck` checks types without emitting files. Commander provides the command and option parsing. `proper-lockfile` serializes writes from simultaneous hook processes and recovers abandoned locks.
 
+CI (`.github/workflows/ci.yml`) runs `pnpm typecheck` and `pnpm test` on every push to `main` and every pull request, on the `ubuntu-26.04` runner with Ubuntu's own `nodejs`, `gjs`, and `lintian`. The suite runs five times in parallel to catch timing-dependent tests, and one run also builds the `.deb` twice and checks that both builds are identical.
+
 ## Capture an event
 
 From this repository:

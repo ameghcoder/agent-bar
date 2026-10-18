@@ -46,6 +46,10 @@ will not be merged, however useful it is otherwise.
    pnpm test
    ```
 
+   CI runs the same checks on Ubuntu 26.04 for every pull request, plus the
+   `.deb` build and its reproducibility check. A pull request is merged only
+   when CI passes.
+
 5. For extension changes, also check a nested GNOME Shell or a real session
    after a logout and login, and include a screenshot in the pull request.
 6. Do not weaken or delete an existing test to make a change pass. If a test
