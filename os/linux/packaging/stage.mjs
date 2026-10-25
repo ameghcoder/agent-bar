@@ -109,7 +109,7 @@ try {
   // 5. The extension: hand-written files from the checkout, the portable core
   //    modules from this build (not from the checkout's generated lib/).
   await mkdir(join(extension, 'lib'), { recursive: true });
-  for (const file of ['extension.js', 'prefs.js', 'metadata.json', 'stylesheet.css', 'lib/focus.js', 'lib/settings.js', 'lib/state-reader.js']) {
+  for (const file of ['extension.js', 'prefs.js', 'metadata.json', 'stylesheet.css', 'lib/focus.js', 'lib/settings.js', 'lib/state-reader.js', 'lib/upgrade.js']) {
     await cp(join(extensionSource, file), join(extension, file));
   }
   for (const file of ['vocabulary.js', 'snapshot.js', 'presentation.js']) {

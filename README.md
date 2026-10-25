@@ -106,6 +106,12 @@ agentbar install-hooks --apply   # usually "Nothing to change"; safe to run
 Reinstalling a file with the *same* version number needs
 `sudo apt install --reinstall ./agentbar_<version>_all.deb`.
 
+From 0.3.0 on, AgentBar notices when it has been upgraded. It shows "Log out to
+finish updating AgentBar" in its menu, plus one notification, each with a Log
+Out button that opens GNOME's normal logout confirmation. It never logs you out
+by itself. Upgrading from 0.2.x, log out by hand: 0.2.x does not have this
+check yet.
+
 ## Uninstall
 
 Three separate steps, from least to most thorough:

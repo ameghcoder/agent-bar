@@ -6,6 +6,7 @@ import Pango from 'gi://Pango';
 import St from 'gi://St';
 
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
+import * as SystemActions from 'resource:///org/gnome/shell/misc/systemActions.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as MessageTray from 'resource:///org/gnome/shell/ui/messageTray.js';
 import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
@@ -13,6 +14,7 @@ import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 
 import {ancestorsOf, pickWindow} from './lib/focus.js';
 import {alertChoiceFrom, planAlerts, topBarContentFrom, topBarParts} from './lib/settings.js';
+import {installedVersion, needsRelogin} from './lib/upgrade.js';
 import {StateWatcher, readProcStat} from './lib/state-reader.js';
 
 // Rendering only reads `intent` (T302's fixed vocabulary), never `status`, so
@@ -55,6 +57,8 @@ const PULSE_LOW_OPACITY = 90;
 const PULSE_HALF_MS = 700;
 
 const DOCTOR_COMMAND = 'agentbar doctor';
+// dpkg replaces many files in a row; check the version once it has settled.
+const UPGRADE_CHECK_DELAY_MS = 2000;
 
 // presentation.ts decides urgency (ADR 0004: permission gets the strongest
 // tier without repeatedly stealing focus); this is only the GNOME enum lookup.
@@ -167,6 +171,15 @@ export default class AgentBarExtension extends Extension {
         this._notificationSettings = new Gio.Settings({schema_id: 'org.gnome.desktop.notifications'});
         this._lastSoundAt = -Infinity;
 
+        // T905: when the installed files change version (an apt upgrade),
+        // ask for a logout. Only the extension's own folder is watched; no
+        // network is involved.
+        this._notifiedVersion = null;
+        this._upgradeCheckSource = 0;
+        this._metadataMonitor = this.dir.monitor_directory(Gio.FileMonitorFlags.NONE, null);
+        this._metadataMonitor.connect('changed', () => this._scheduleUpgradeCheck());
+        this._checkUpgrade();
+
         this._watcher = new StateWatcher(statePath(), {
             onView: (view) => this._renderView(view),
             onUnavailable: (message) => {
@@ -184,6 +197,11 @@ export default class AgentBarExtension extends Extension {
 
     _buildFooter() {
         this._indicator.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+        // T905: shown only after an upgrade, until the next login.
+        this._reloginItem = new PopupMenu.PopupMenuItem('Log out to finish updating AgentBar');
+        this._reloginItem.connect('activate', () => this._logOut());
+        this._reloginItem.visible = false;
+        this._indicator.menu.addMenuItem(this._reloginItem);
         // Text comes from presentation.js (view.health); no state yet reads as
         // unavailable until the first view or placeholder arrives.
         this._healthItem = new PopupMenu.PopupMenuItem('State unavailable', {reactive: false});
@@ -318,6 +336,54 @@ export default class AgentBarExtension extends Extension {
         }
     }
 
+    _scheduleUpgradeCheck() {
+        if (this._upgradeCheckSource)
+            GLib.Source.remove(this._upgradeCheckSource);
+        this._upgradeCheckSource = GLib.timeout_add(GLib.PRIORITY_DEFAULT, UPGRADE_CHECK_DELAY_MS, () => {
+            this._upgradeCheckSource = 0;
+            this._checkUpgrade();
+            return GLib.SOURCE_REMOVE;
+        });
+    }
+
+    // Compares the running version with the installed metadata.json. The
+    // menu row stays until the next login; the notification is raised once
+    // per installed version.
+    _checkUpgrade() {
+        let text = null;
+        try {
+            const [, bytes] = this.dir.get_child('metadata.json').load_contents(null);
+            text = new TextDecoder().decode(bytes);
+        } catch {
+            text = null;
+        }
+        const relogin = needsRelogin(this.metadata['version-name'], text);
+        this._reloginItem.visible = relogin;
+        const installed = installedVersion(text);
+        if (!relogin || installed === this._notifiedVersion)
+            return;
+        this._notifiedVersion = installed;
+        console.log(`AgentBar: ${installed} is installed, ${this.metadata['version-name']} is running; asking for a logout`);
+        const notification = new MessageTray.Notification({
+            source: this._notificationSource,
+            title: 'AgentBar was updated',
+            body: 'Log out and back in to finish updating.',
+            iconName: 'system-software-update-symbolic',
+            urgency: MessageTray.Urgency.NORMAL,
+        });
+        notification.addAction('Log Out', () => this._logOut());
+        this._notificationSource.addNotification(notification);
+    }
+
+    // Opens GNOME's normal logout confirmation; the user can still cancel.
+    _logOut() {
+        try {
+            SystemActions.getDefault().activateLogout();
+        } catch (error) {
+            console.log(`AgentBar: cannot open the logout dialog - ${error.message}`);
+        }
+    }
+
     _doNotDisturb() {
         return !this._notificationSettings.get_boolean('show-banners');
     }
@@ -415,6 +481,13 @@ export default class AgentBarExtension extends Extension {
     disable() {
         this._watcher?.stop();
         this._watcher = null;
+        this._metadataMonitor?.cancel();
+        this._metadataMonitor = null;
+        if (this._upgradeCheckSource) {
+            GLib.Source.remove(this._upgradeCheckSource);
+            this._upgradeCheckSource = 0;
+        }
+        this._reloginItem = null;
         this._stopAnimation();
         if (this._animationsChangedId) {
             this._stSettings.disconnect(this._animationsChangedId);

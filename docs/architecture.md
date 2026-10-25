@@ -294,6 +294,16 @@ banner, so Do Not Disturb silences both; a sound-only alert checks
 `org.gnome.desktop.notifications show-banners` itself. Sounds are freedesktop
 theme names, so nothing is bundled.
 
+After an upgrade (T905), the running extension is older than its files on
+disk, because GNOME Shell on Wayland loads extension code only at login. The
+extension watches its own folder and, 2 s after the last change, compares
+its running `version-name` with the installed `metadata.json`
+(`lib/upgrade.js`; an unreadable file never counts). On a difference it
+shows a "Log out to finish updating AgentBar" menu row and raises one
+notification per installed version. Both have a Log Out button that calls
+`SystemActions.activateLogout()`, GNOME's own confirmation dialog. No network
+is involved.
+
 "Show in top bar" (T902) hides the icon or the title. Icon only keeps the
 whole title as the indicator's accessible name; Text only moves the attention
 and error colours onto the title; a hidden icon never pulses.

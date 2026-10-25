@@ -79,7 +79,7 @@ test('packing the extension includes its lib/, not just the three top-level file
   await run('os/linux/scripts/extension-dev.sh', ['pack', outDir], { cwd: fileURLToPath(root) });
   const { stdout } = await run('unzip', ['-Z1', join(outDir, 'agentbar@ameghcoder.github.io.shell-extension.zip')]);
   const entries = stdout.trim().split('\n');
-  for (const expected of ['metadata.json', 'extension.js', 'prefs.js', 'lib/vocabulary.js', 'lib/snapshot.js', 'lib/presentation.js', 'lib/state-reader.js', 'lib/settings.js', 'schemas/org.gnome.shell.extensions.agentbar.gschema.xml']) {
+  for (const expected of ['metadata.json', 'extension.js', 'prefs.js', 'lib/vocabulary.js', 'lib/snapshot.js', 'lib/presentation.js', 'lib/state-reader.js', 'lib/settings.js', 'lib/upgrade.js', 'schemas/org.gnome.shell.extensions.agentbar.gschema.xml']) {
     assert.ok(entries.includes(expected), `packed zip is missing ${expected}; entries were: ${entries.join(', ')}`);
   }
 });
@@ -187,4 +187,19 @@ test('prefs.js offers one alert choice per state from the shared list', async ()
   assert.match(source, /ALERT_STATES/);
   assert.match(source, /ALERT_CHOICES/);
   assert.match(source, /title: 'Alerts'/);
+});
+
+// T905: after an upgrade, ask for a logout: a menu row and one notification,
+// each with a Log Out button that opens GNOME's normal confirmation. Never
+// log out unasked, and never use the network to find out.
+test('extension.js watches its installed metadata and offers a logout only through a button', async () => {
+  const source = await readFile(new URL('os/linux/gnome-shell/extension.js', root), 'utf8');
+  assert.match(source, /needsRelogin\(this\.metadata\['version-name'\]/);
+  assert.match(source, /'Log out to finish updating AgentBar'/);
+  assert.match(source, /addAction\('Log Out'/);
+  assert.equal((source.match(/activateLogout\(\)/g) ?? []).length, 1, 'one caller, the shared button handler');
+  const logout = source.slice(source.indexOf('    _logOut() {'), source.indexOf('    _logOut() {') + 400);
+  assert.match(logout, /try \{/, 'logout can be unavailable (for example in a locked-down session)');
+  const disable = source.slice(source.indexOf('    disable() {'));
+  assert.match(disable, /this\._metadataMonitor\?\.cancel\(\)/);
 });
