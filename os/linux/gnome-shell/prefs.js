@@ -1,9 +1,10 @@
 import Adw from 'gi://Adw';
+import Gio from 'gi://Gio';
 import Gtk from 'gi://Gtk';
 
 import {ExtensionPreferences} from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
-import {ALERT_CHOICES, ALERT_STATES, TOP_BAR_CONTENTS, alertChoiceFrom, topBarContentFrom} from './lib/settings.js';
+import {ALERT_CHOICES, ALERT_STATES, TOP_BAR_CONTENTS, alertChoiceFrom, testAlertRequest, topBarContentFrom} from './lib/settings.js';
 
 // T901: AgentBar's settings window, opened from the Extensions app or the
 // AgentBar menu. It runs in the Extensions app's process, not in GNOME Shell.
@@ -11,6 +12,14 @@ import {ALERT_CHOICES, ALERT_STATES, TOP_BAR_CONTENTS, alertChoiceFrom, topBarCo
 // lib/settings.js.
 
 const REPORT_URL = 'https://github.com/ameghcoder/agent-bar/issues/new/choose';
+
+// What a Test press will do, said back as a toast.
+const TEST_TOAST_BY_CHOICE = {
+    'banner-and-sound': 'Test alert sent: banner and sound',
+    'banner': 'Test alert sent: banner only',
+    'sound': 'Test alert sent: sound only',
+    'top-bar': 'Top bar only: this state raises no banner or sound',
+};
 
 export default class AgentBarPreferences extends ExtensionPreferences {
     fillPreferencesWindow(window) {
@@ -51,13 +60,25 @@ export default class AgentBarPreferences extends ExtensionPreferences {
             title: 'Alerts',
             description: 'How AgentBar tells you about each state. Do Not Disturb silences banners and sounds.',
         });
+        const notifications = new Gio.Settings({schema_id: 'org.gnome.desktop.notifications'});
         for (const state of ALERT_STATES) {
-            group.add(this._choiceRow(window, settings, {
+            const row = this._choiceRow(window, settings, {
                 title: state.label,
                 key: state.key,
                 choices: ALERT_CHOICES,
                 read: () => alertChoiceFrom(settings, state.status),
-            }));
+            });
+            // Asks AgentBar in GNOME Shell to raise one test alert for this
+            // state, through the same code as a real one.
+            const button = new Gtk.Button({label: 'Test', valign: Gtk.Align.CENTER, tooltip_text: `Show a test "${state.label}" alert`});
+            button.connect('clicked', () => {
+                settings.set_string('test-alert', testAlertRequest(state.status, Date.now()));
+                const choice = alertChoiceFrom(settings, state.status);
+                const quiet = choice !== 'top-bar' && !notifications.get_boolean('show-banners');
+                window.add_toast(new Adw.Toast({title: quiet ? 'Do Not Disturb is on, so the test alert stays silent' : TEST_TOAST_BY_CHOICE[choice]}));
+            });
+            row.add_suffix(button);
+            group.add(row);
         }
         return group;
     }

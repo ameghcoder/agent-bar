@@ -62,6 +62,18 @@ export function alertChoiceFrom(settings, status) {
     }
 }
 
+// Test buttons: prefs.js runs in the Extensions app's process, so it asks the
+// extension through the 'test-alert' key. The value carries a time, so every
+// press is a change; the extension reads back only the state.
+export function testAlertRequest(status, now) {
+    return `${status}@${now}`;
+}
+
+export function testAlertStatus(value) {
+    const status = typeof value === 'string' ? value.split('@')[0] : '';
+    return ALERT_STATES.some(state => state.status === status) ? status : null;
+}
+
 const URGENCY_RANK = {critical: 0, high: 1, normal: 2, low: 3};
 // Alerts closer together than this share one sound.
 export const SOUND_GAP_MS = 2000;

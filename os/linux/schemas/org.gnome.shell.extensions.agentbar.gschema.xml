@@ -47,5 +47,11 @@
       <summary>Alert when a turn completes</summary>
       <description>Banner and sound, banner only, sound only, or top bar only.</description>
     </key>
+    <!-- Written by the settings window's Test buttons, not a preference. -->
+    <key name="test-alert" type="s">
+      <default>''</default>
+      <summary>Test alert request</summary>
+      <description>Set by the Test buttons in AgentBar's settings ("state@time"); the extension raises one test alert for that state.</description>
+    </key>
   </schema>
 </schemalist>

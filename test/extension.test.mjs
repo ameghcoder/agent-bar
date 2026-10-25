@@ -203,3 +203,19 @@ test('extension.js watches its installed metadata and offers a logout only throu
   const disable = source.slice(source.indexOf('    disable() {'));
   assert.match(disable, /this\._metadataMonitor\?\.cancel\(\)/);
 });
+
+test('a test request from the settings window runs the real alert path, marked as a test', async () => {
+  const source = await readFile(new URL('os/linux/gnome-shell/extension.js', root), 'utf8');
+  assert.match(source, /'changed::test-alert'/);
+  assert.match(source, /testAlertStatus\(/);
+  const test = source.slice(source.indexOf('    _runTestAlert() {'), source.indexOf('    _runTestAlert() {') + 900);
+  assert.match(test, /this\._raiseAlerts\(/, 'the same code as real alerts');
+  assert.match(test, /'Test alert from AgentBar settings'/);
+});
+
+test('prefs.js puts a Test button on every alert row and confirms what it did', async () => {
+  const source = await readFile(new URL('os/linux/gnome-shell/prefs.js', root), 'utf8');
+  assert.match(source, /label: 'Test'/);
+  assert.match(source, /testAlertRequest\(state\.status/);
+  assert.match(source, /add_toast\(/);
+});

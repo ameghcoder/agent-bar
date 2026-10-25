@@ -11,6 +11,8 @@ import {
   TOP_BAR_CONTENTS,
   alertChoiceFrom,
   planAlerts,
+  testAlertRequest,
+  testAlertStatus,
   topBarContentFrom,
   topBarParts,
 } from '../os/linux/gnome-shell/lib/settings.js';
@@ -54,7 +56,7 @@ test('the schema file declares exactly the choices and default the extension use
   assert.equal(/<default>'([^']+)'<\/default>/.exec(key)?.[1], DEFAULT_TOP_BAR_CONTENT);
   // Only keys a shipped task uses (M7 rule).
   assert.deepEqual([...xml.matchAll(/<key name="([^"]+)"/g)].map((match) => match[1]),
-    ['top-bar-content', ...ALERT_STATES.map((state) => state.key)]);
+    ['top-bar-content', ...ALERT_STATES.map((state) => state.key), 'test-alert']);
 });
 
 test('every alert key in the schema offers the shared choices and the state\'s own default', async () => {
@@ -137,4 +139,19 @@ test('a sound-only alert that is held back by the gap raises nothing at all, and
     choose({ failed: 'sound', completed: 'top-bar' }), { lastSoundAt: 0, now: 500 });
   assert.deepEqual(alerts.map((alert) => [alert.banner, alert.sound]), [[false, null], [false, null]]);
   assert.equal(lastSoundAt, 0);
+});
+
+// Test buttons in the settings window: prefs.js runs in another process, so it
+// asks the extension through the 'test-alert' key. Each press writes a new
+// value, so pressing twice still counts.
+test('a test request names one known state and changes on every press', () => {
+  const first = testAlertRequest('permission_required', 1000);
+  const second = testAlertRequest('permission_required', 1001);
+  assert.notEqual(first, second);
+  assert.equal(testAlertStatus(first), 'permission_required');
+  for (const state of ALERT_STATES) assert.equal(testAlertStatus(testAlertRequest(state.status, 5)), state.status);
+  assert.equal(testAlertStatus(''), null, 'the default value tests nothing');
+  assert.equal(testAlertStatus('running@5'), null, 'only states that alert');
+  assert.equal(testAlertStatus('garbage'), null);
+  assert.equal(testAlertStatus(null), null);
 });

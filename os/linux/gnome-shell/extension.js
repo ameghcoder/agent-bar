@@ -13,7 +13,8 @@ import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 
 import {ancestorsOf, pickWindow} from './lib/focus.js';
-import {alertChoiceFrom, planAlerts, topBarContentFrom, topBarParts} from './lib/settings.js';
+import {notificationsFor} from './lib/presentation.js';
+import {alertChoiceFrom, planAlerts, testAlertStatus, topBarContentFrom, topBarParts} from './lib/settings.js';
 import {installedVersion, needsRelogin} from './lib/upgrade.js';
 import {StateWatcher, readProcStat} from './lib/state-reader.js';
 
@@ -170,6 +171,7 @@ export default class AgentBarExtension extends Extension {
         // plays when it actually shows the banner.
         this._notificationSettings = new Gio.Settings({schema_id: 'org.gnome.desktop.notifications'});
         this._lastSoundAt = -Infinity;
+        this._testAlertChangedId = this._settings?.connect('changed::test-alert', () => this._runTestAlert()) ?? 0;
 
         // T905: when the installed files change version (an apt upgrade),
         // ask for a logout. Only the extension's own folder is watched; no
@@ -320,6 +322,25 @@ export default class AgentBarExtension extends Extension {
         const {alerts, lastSoundAt} = planAlerts(notifications, status => alertChoiceFrom(this._settings, status),
             {lastSoundAt: this._lastSoundAt, now});
         this._lastSoundAt = lastSoundAt;
+        this._raiseAlerts(alerts);
+    }
+
+    // A Test button in the settings window: one alert for that state through
+    // the same rules and code as a real one, so it proves the user's choice,
+    // the sound, and Do Not Disturb. The notification comes from
+    // notificationsFor itself (title, icon, urgency); only the body says it
+    // is a test. It ignores the gap between sounds and does not move it.
+    _runTestAlert() {
+        const status = testAlertStatus(this._settings?.get_string('test-alert'));
+        if (!status)
+            return;
+        const session = state => ({sessionId: 'agentbar-test', status: state, ended: false, projectName: 'Test alert from AgentBar settings'});
+        const notifications = notificationsFor({sessions: [session('running')]}, {sessions: [session(status)]});
+        const {alerts} = planAlerts(notifications, state => alertChoiceFrom(this._settings, state), {lastSoundAt: -Infinity, now: 0});
+        this._raiseAlerts(alerts);
+    }
+
+    _raiseAlerts(alerts) {
         for (const {notification, banner, sound} of alerts) {
             if (banner) {
                 this._notificationSource.addNotification(new MessageTray.Notification({
@@ -497,6 +518,10 @@ export default class AgentBarExtension extends Extension {
         if (this._settingsChangedId) {
             this._settings.disconnect(this._settingsChangedId);
             this._settingsChangedId = 0;
+        }
+        if (this._testAlertChangedId) {
+            this._settings.disconnect(this._testAlertChangedId);
+            this._testAlertChangedId = 0;
         }
         this._settings = null;
         this._notificationSettings = null;

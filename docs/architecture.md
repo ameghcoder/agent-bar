@@ -292,7 +292,11 @@ notification, and never within 2 s of the previous one. A banner carries its
 sound as `MessageTray.Sound`, which GNOME plays only when it shows the
 banner, so Do Not Disturb silences both; a sound-only alert checks
 `org.gnome.desktop.notifications show-banners` itself. Sounds are freedesktop
-theme names, so nothing is bundled.
+theme names, so nothing is bundled. The settings window's Test buttons run in
+the Extensions app's process, so they write `test-alert` ("state@time"); the
+extension raises one alert for that state through `notificationsFor` and
+`planAlerts`, the same path as a real one, with the body marking it as a
+test.
 
 After an upgrade (T905), the running extension is older than its files on
 disk, because GNOME Shell on Wayland loads extension code only at login. The

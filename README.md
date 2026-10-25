@@ -163,7 +163,9 @@ Open AgentBar's settings from its menu (Settings), or from the Extensions app
 
 Changes apply immediately. With Icon only, screen readers still read the
 whole title; with Text only, "Permission needed" and "Failed" keep their
-colours. Each state has its own sound from your system's sound theme. When
+colours. Each alert row has a **Test** button that raises one test alert
+through AgentBar itself, so you can hear and see your choice without waiting
+for Claude. Each state has its own sound from your system's sound theme. When
 several alerts arrive together, only the most urgent one plays a sound. Do Not
 Disturb silences banners and sounds alike. Whatever you choose, the top bar
 and the menu always show the true state. Settings stay on your machine, in
