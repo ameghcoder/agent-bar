@@ -3,6 +3,7 @@ import { spawn } from 'node:child_process';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { isDeepStrictEqual } from 'node:util';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 
@@ -36,38 +37,96 @@ async function runHarness(t, script = harness, args = []) {
 }
 
 test('a real StateWatcher, driven by the real gjs runtime against real atomic renames, reports the whole lifecycle correctly', { skip: process.platform !== 'linux' }, async (t) => {
-  const { code, lines } = await runHarness(t);
+  assertLifecycle(await runHarness(t));
+});
+
+// #48: a step starts when the watcher has reported the previous step's
+// outcome, not on a clock, so a slow watcher (here: a debounce far longer than
+// the old fixed 150 ms between writes) reports the same lifecycle.
+test('the lifecycle is reported in full even when the watcher is slow to react', { skip: process.platform !== 'linux' }, async (t) => {
+  assertLifecycle(await runHarness(t, harness, ['400']));
+});
+
+// #48, reproduced on purpose: a pause between a writer's temporary file and its
+// rename (what a busy machine causes) makes the watcher read before and after
+// the rename, so a step renders the previous state again before its own. The
+// lifecycle must still hold.
+test('a pause between a writer\'s temporary file and its rename still reports the whole lifecycle', { skip: process.platform !== 'linux' }, async (t) => {
+  const result = await runHarness(t, harness, ['50', '250']);
+  const viewCount = result.lines.filter((line) => line.kind === 'view').length;
+  assert.ok(viewCount > 4, `the pause really produced extra reads (${viewCount} views)`);
+  assertLifecycle(result);
+});
+
+// The harness prints a `step` line as each step starts; group the callback
+// lines that follow it.
+function bySteps(lines) {
+  const steps = [];
+  for (const line of lines) {
+    if (line.kind === 'step') steps.push([]);
+    else steps.at(-1)?.push(line);
+  }
+  return steps;
+}
+
+// #48: the watcher re-reads on every directory event, including a writer's
+// temporary file (src/core/state.ts writes one too), so a busy machine can
+// render a view more than once per write. A repeat is harmless: within a step,
+// every view must be either that step's own result or the previous step's
+// result (a read that landed before the rename). Everything that matters stays
+// exact: each step's resulting state, every unavailable message, and every
+// notification.
+function assertLifecycle({ code, lines }) {
   assert.equal(code, 0);
-  const kinds = lines.map((line) => line.kind);
+  const steps = bySteps(lines);
+  assert.equal(steps.length, 7, 'every step ran');
+  const views = (step) => step.filter((line) => line.kind === 'view').map((line) => line.view);
+  const ofKind = (step, kind) => step.filter((line) => line.kind === kind);
+  const results = [];
+  steps.forEach((step, index) => {
+    const own = views(step);
+    const result = own.at(-1) ?? results[index - 1];
+    for (const view of own) {
+      assert.ok(isDeepStrictEqual(view, result) || isDeepStrictEqual(view, results[index - 1]),
+        `step ${index} rendered a view that is neither its result nor the previous one: ${JSON.stringify(view)}`);
+    }
+    results.push(result);
+  });
 
-  assert.deepEqual(kinds, [
-    'view', 'view', 'notifications', 'view', 'unavailable', 'unavailable', 'view', 'notifications', 'stopped',
-  ]);
-
-  assert.deepEqual(lines[0].view, {
+  // 0: no state file yet reads as empty/idle, not an error.
+  assert.deepEqual(results[0], {
     status: 'idle', label: 'Idle', intent: 'quiet', stale: false, attentionCount: 0, sessions: [],
     title: 'AgentBar - No sessions',
     leaderId: null,
     health: 'No events yet · run "agentbar install-hooks"',
-  }, 'no state file yet reads as empty/idle, not an error');
+  });
+  assert.equal(views(steps[0]).length >= 1, true, 'the first read renders a view');
 
-  assert.equal(lines[1].view.status, 'permission_required');
-  assert.equal(lines[2].notifications.length, 1);
-  assert.equal(lines[2].notifications[0].sessionId, 'alpha');
-  assert.equal(lines[2].notifications[0].title, 'Permission needed');
+  // 1: a valid snapshot: permission needed, one notification.
+  assert.equal(results[1].status, 'permission_required');
+  assert.deepEqual(ofKind(steps[1], 'notifications').map((line) => line.notifications.map((n) => [n.sessionId, n.title])),
+    [[['alpha', 'Permission needed']]]);
 
-  assert.deepEqual(lines[3].view, lines[1].view, 'rewriting the identical snapshot still re-renders the same view');
+  // 2: the identical snapshot rewritten re-renders the same view and never notifies again.
+  assert.ok(views(steps[2]).length >= 1, 'rewriting the identical snapshot still re-renders');
+  assert.deepEqual(results[2], results[1]);
+  assert.deepEqual(ofKind(steps[2], 'notifications'), []);
 
-  assert.match(lines[4].message, /not valid JSON/i);
-  assert.match(lines[5].message, /schema version 2/);
+  // 3 and 4: malformed, then future-schema state: each reported exactly once.
+  assert.deepEqual(ofKind(steps[3], 'unavailable').map((line) => /not valid JSON/i.test(line.message)), [true]);
+  assert.deepEqual(ofKind(steps[4], 'unavailable').map((line) => /schema version 2/.test(line.message)), [true]);
 
-  assert.equal(lines[6].view.status, 'completed');
-  assert.equal(lines[7].notifications.length, 1);
-  assert.equal(lines[7].notifications[0].title, 'Turn complete');
+  // 5: a valid snapshot recovers: turn complete, one notification.
+  assert.equal(results[5].status, 'completed');
+  assert.deepEqual(ofKind(steps[5], 'notifications').map((line) => line.notifications.map((n) => n.title)), [['Turn complete']]);
+
+  // 6: stop() silences everything after it.
+  assert.deepEqual(steps[6].map((line) => line.kind), ['stopped']);
 
   const notificationCount = lines.filter((line) => line.kind === 'notifications').reduce((total, line) => total + line.notifications.length, 0);
   assert.equal(notificationCount, 2, 'the identical rewrite in step 2 must not add a third notification');
-});
+  assert.deepEqual(steps.flatMap((step) => ofKind(step, 'unavailable')).length, 2);
+}
 
 test('a state path that exists but cannot be read is unavailable, never an empty "no sessions" view', { skip: process.platform !== 'linux' }, async (t) => {
   const { lines } = await runHarness(t, unreadableHarness);
