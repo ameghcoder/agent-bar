@@ -249,6 +249,9 @@ const notifyStatuses = Object.keys(urgencyByStatus) as readonly Status[];
 // events and which may hold a command, a path, or an error dump.
 export interface NotificationView {
   sessionId: string;
+  // Which state this notification announces, so a renderer can apply a
+  // per-state preference (T903) without parsing the title.
+  status: Status;
   title: string;
   body: string;
   intent: Intent;
@@ -264,6 +267,7 @@ export function notificationsFor(previous: IndicatorView | undefined, next: Indi
     .filter((session) => !session.ended && notifyStatuses.includes(session.status) && before.get(session.sessionId) !== session.status)
     .map((session) => ({
       sessionId: session.sessionId,
+      status: session.status,
       title: statusLabel(session.status),
       body: session.projectName,
       intent: statusIntent(session.status),

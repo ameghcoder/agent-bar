@@ -14,5 +14,38 @@
       <summary>What the top bar shows</summary>
       <description>The state icon and the title ("icon-and-text"), only the icon ("icon"), or only the title ("text").</description>
     </key>
+    <!-- T903: one alert choice per notifying state. -->
+    <key name="alert-permission" type="s">
+      <choices>
+        <choice value="banner-and-sound"/><choice value="banner"/><choice value="sound"/><choice value="top-bar"/>
+      </choices>
+      <default>'banner-and-sound'</default>
+      <summary>Alert when Claude needs permission</summary>
+      <description>Banner and sound, banner only, sound only, or top bar only.</description>
+    </key>
+    <key name="alert-waiting" type="s">
+      <choices>
+        <choice value="banner-and-sound"/><choice value="banner"/><choice value="sound"/><choice value="top-bar"/>
+      </choices>
+      <default>'banner-and-sound'</default>
+      <summary>Alert when Claude is waiting for you</summary>
+      <description>Banner and sound, banner only, sound only, or top bar only.</description>
+    </key>
+    <key name="alert-failed" type="s">
+      <choices>
+        <choice value="banner-and-sound"/><choice value="banner"/><choice value="sound"/><choice value="top-bar"/>
+      </choices>
+      <default>'banner-and-sound'</default>
+      <summary>Alert when a turn fails</summary>
+      <description>Banner and sound, banner only, sound only, or top bar only.</description>
+    </key>
+    <key name="alert-complete" type="s">
+      <choices>
+        <choice value="banner-and-sound"/><choice value="banner"/><choice value="sound"/><choice value="top-bar"/>
+      </choices>
+      <default>'banner'</default>
+      <summary>Alert when a turn completes</summary>
+      <description>Banner and sound, banner only, sound only, or top bar only.</description>
+    </key>
   </schema>
 </schemalist>

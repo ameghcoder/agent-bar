@@ -284,6 +284,16 @@ having no maintainer scripts (ADR 0006). For a checkout,
 `os/linux/scripts/extension-dev.sh install` compiles the schema into the
 user's `~/.local/share/glib-2.0/schemas/`.
 
+Alerts per state (T903): `notificationsFor` names each notification's
+`status`, and `planAlerts` (`lib/settings.js`) turns a batch into banners and
+sounds from the user's choice per state (Banner and sound, Banner only, Sound
+only, Top bar only). A batch plays at most one sound, for its most urgent
+notification, and never within 2 s of the previous one. A banner carries its
+sound as `MessageTray.Sound`, which GNOME plays only when it shows the
+banner, so Do Not Disturb silences both; a sound-only alert checks
+`org.gnome.desktop.notifications show-banners` itself. Sounds are freedesktop
+theme names, so nothing is bundled.
+
 "Show in top bar" (T902) hides the icon or the title. Icon only keeps the
 whole title as the indicator's accessible name; Text only moves the attention
 and error colours onto the title; a hidden icon never pulses.

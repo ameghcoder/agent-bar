@@ -3,7 +3,7 @@ import Gtk from 'gi://Gtk';
 
 import {ExtensionPreferences} from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
-import {TOP_BAR_CONTENTS, topBarContentFrom} from './lib/settings.js';
+import {ALERT_CHOICES, ALERT_STATES, TOP_BAR_CONTENTS, alertChoiceFrom, topBarContentFrom} from './lib/settings.js';
 
 // T901: AgentBar's settings window, opened from the Extensions app or the
 // AgentBar menu. It runs in the Extensions app's process, not in GNOME Shell.
@@ -22,35 +22,66 @@ export default class AgentBarPreferences extends ExtensionPreferences {
         }
 
         const page = new Adw.PreferencesPage({title: 'General', icon_name: 'preferences-system-symbolic'});
-        page.add(settings ? this._topBarGroup(window, settings) : this._unavailableGroup());
+        if (settings) {
+            page.add(this._topBarGroup(window, settings));
+            page.add(this._alertsGroup(window, settings));
+        } else {
+            page.add(this._unavailableGroup());
+        }
         page.add(this._aboutGroup());
         window.add(page);
     }
 
-    // T902: "Show in top bar". The row and the stored value follow each
-    // other, so a change made elsewhere (gsettings, a second window) shows up.
+    // T902: "Show in top bar".
     _topBarGroup(window, settings) {
         const group = new Adw.PreferencesGroup({title: 'Top bar'});
-        const row = new Adw.ComboRow({
+        group.add(this._choiceRow(window, settings, {
             title: 'Show in top bar',
-            model: Gtk.StringList.new(TOP_BAR_CONTENTS.map(choice => choice.label)),
+            key: 'top-bar-content',
+            choices: TOP_BAR_CONTENTS,
+            read: () => topBarContentFrom(settings),
+        }));
+        return group;
+    }
+
+    // T903: one choice per state. The top bar always shows the true state;
+    // these only decide how loudly AgentBar says it.
+    _alertsGroup(window, settings) {
+        const group = new Adw.PreferencesGroup({
+            title: 'Alerts',
+            description: 'How AgentBar tells you about each state. Do Not Disturb silences banners and sounds.',
         });
+        for (const state of ALERT_STATES) {
+            group.add(this._choiceRow(window, settings, {
+                title: state.label,
+                key: state.key,
+                choices: ALERT_CHOICES,
+                read: () => alertChoiceFrom(settings, state.status),
+            }));
+        }
+        return group;
+    }
+
+    // A drop-down bound to one string key. The row and the stored value
+    // follow each other, so a change made elsewhere (gsettings, a second
+    // window) shows up.
+    _choiceRow(window, settings, {title, key, choices, read}) {
+        const row = new Adw.ComboRow({title, model: Gtk.StringList.new(choices.map(choice => choice.label))});
         const showStored = () => {
-            row.selected = TOP_BAR_CONTENTS.findIndex(choice => choice.id === topBarContentFrom(settings));
+            row.selected = choices.findIndex(choice => choice.id === read());
         };
         showStored();
         row.connect('notify::selected', () => {
-            const choice = TOP_BAR_CONTENTS[row.selected];
-            if (choice && choice.id !== topBarContentFrom(settings))
-                settings.set_string('top-bar-content', choice.id);
+            const choice = choices[row.selected];
+            if (choice && choice.id !== read())
+                settings.set_string(key, choice.id);
         });
-        const changedId = settings.connect('changed::top-bar-content', showStored);
+        const changedId = settings.connect(`changed::${key}`, showStored);
         window.connect('close-request', () => {
             settings.disconnect(changedId);
             return false;
         });
-        group.add(row);
-        return group;
+        return row;
     }
 
     _unavailableGroup() {

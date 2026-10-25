@@ -178,6 +178,7 @@ test('entering an attention state notifies once, and repeating the same snapshot
   const asked = view([{ ...session('alpha', 'permission_required', 1), lastMessage: 'Claude needs permission' }]);
   assert.deepEqual(notificationsFor(before, asked), [{
     sessionId: 'alpha',
+    status: 'permission_required',
     title: 'Permission needed',
     body: 'alpha',
     intent: 'attention',

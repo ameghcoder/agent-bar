@@ -152,10 +152,16 @@ Open AgentBar's settings from its menu (Settings), or from the Extensions app
 | Setting | Choices |
 | --- | --- |
 | Show in top bar | Icon and text (default), Icon only, Text only |
+| Alerts: Permission needed, Waiting for you, Failed | Banner and sound (default), Banner only, Sound only, Top bar only |
+| Alerts: Turn complete | Banner only (default), Banner and sound, Sound only, Top bar only |
 
 Changes apply immediately. With Icon only, screen readers still read the
 whole title; with Text only, "Permission needed" and "Failed" keep their
-colours. Settings stay on your machine, in GNOME's own settings store.
+colours. Each state has its own sound from your system's sound theme. When
+several alerts arrive together, only the most urgent one plays a sound. Do Not
+Disturb silences banners and sounds alike. Whatever you choose, the top bar
+and the menu always show the true state. Settings stay on your machine, in
+GNOME's own settings store.
 
 ## Troubleshooting
 

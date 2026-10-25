@@ -168,3 +168,23 @@ test('extension.js keeps the full title as the accessible name and skips the pul
   const pulse = source.slice(source.indexOf('    _pulseOnce(roundTrips) {'), source.indexOf('    _stopAnimation() {'));
   assert.match(pulse, /!this\._icon\.visible/);
 });
+
+// T903: alerts per state. The extension only turns a plan into GNOME calls:
+// banners carry their sound, so Do Not Disturb silences both; a sound-only
+// alert checks Do Not Disturb itself.
+test('extension.js raises alerts from the per-state plan and respects Do Not Disturb for sound-only alerts', async () => {
+  const source = await readFile(new URL('os/linux/gnome-shell/extension.js', root), 'utf8');
+  const show = source.slice(source.indexOf('    _showNotifications(notifications) {'), source.indexOf('    _renderPlaceholder('));
+  assert.match(show, /planAlerts\(notifications, status => alertChoiceFrom\(this\._settings, status\)/);
+  assert.match(show, /sound: sound \? new MessageTray\.Sound\(null, sound\) : null/);
+  assert.match(show, /get_sound_player\(\)\.play_from_theme\(sound,/);
+  assert.match(show, /this\._doNotDisturb\(\)/);
+  assert.match(source, /get_boolean\('show-banners'\)/);
+});
+
+test('prefs.js offers one alert choice per state from the shared list', async () => {
+  const source = await readFile(new URL('os/linux/gnome-shell/prefs.js', root), 'utf8');
+  assert.match(source, /ALERT_STATES/);
+  assert.match(source, /ALERT_CHOICES/);
+  assert.match(source, /title: 'Alerts'/);
+});

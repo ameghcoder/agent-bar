@@ -1,4 +1,5 @@
 import Clutter from 'gi://Clutter';
+import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import Meta from 'gi://Meta';
 import Pango from 'gi://Pango';
@@ -11,7 +12,7 @@ import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 
 import {ancestorsOf, pickWindow} from './lib/focus.js';
-import {topBarContentFrom, topBarParts} from './lib/settings.js';
+import {alertChoiceFrom, planAlerts, topBarContentFrom, topBarParts} from './lib/settings.js';
 import {StateWatcher, readProcStat} from './lib/state-reader.js';
 
 // Rendering only reads `intent` (T302's fixed vocabulary), never `status`, so
@@ -160,6 +161,11 @@ export default class AgentBarExtension extends Extension {
         }
         this._settingsChangedId = this._settings?.connect('changed::top-bar-content', () => this._applyTopBarContent()) ?? 0;
         this._applyTopBarContent();
+        // T903: GNOME's Do Not Disturb switch, for alerts that play a sound
+        // without a banner. Banners carry their own sound, which GNOME only
+        // plays when it actually shows the banner.
+        this._notificationSettings = new Gio.Settings({schema_id: 'org.gnome.desktop.notifications'});
+        this._lastSoundAt = -Infinity;
 
         this._watcher = new StateWatcher(statePath(), {
             onView: (view) => this._renderView(view),
@@ -288,18 +294,32 @@ export default class AgentBarExtension extends Extension {
 
     // Each NotificationView is already deduped and decided by presentation.ts
     // (notificationsFor): one per meaningful transition, never on startup
-    // replay, never for a rewrite that changed nothing. This only turns each
-    // one into a real GNOME notification.
+    // replay, never for a rewrite that changed nothing. T903: the user's
+    // per-state choice decides banner and sound (planAlerts, lib/settings.js);
+    // this only turns the plan into GNOME calls.
     _showNotifications(notifications) {
-        for (const notification of notifications) {
-            this._notificationSource.addNotification(new MessageTray.Notification({
-                source: this._notificationSource,
-                title: notification.title,
-                body: notification.body,
-                iconName: ICON_BY_INTENT[notification.intent] ?? ICON_BY_INTENT.unknown,
-                urgency: SHELL_URGENCY[notification.urgency] ?? MessageTray.Urgency.NORMAL,
-            }));
+        const now = GLib.get_monotonic_time() / 1000;
+        const {alerts, lastSoundAt} = planAlerts(notifications, status => alertChoiceFrom(this._settings, status),
+            {lastSoundAt: this._lastSoundAt, now});
+        this._lastSoundAt = lastSoundAt;
+        for (const {notification, banner, sound} of alerts) {
+            if (banner) {
+                this._notificationSource.addNotification(new MessageTray.Notification({
+                    source: this._notificationSource,
+                    title: notification.title,
+                    body: notification.body,
+                    iconName: ICON_BY_INTENT[notification.intent] ?? ICON_BY_INTENT.unknown,
+                    urgency: SHELL_URGENCY[notification.urgency] ?? MessageTray.Urgency.NORMAL,
+                    sound: sound ? new MessageTray.Sound(null, sound) : null,
+                }));
+            } else if (sound && !this._doNotDisturb()) {
+                global.display.get_sound_player().play_from_theme(sound, notification.title, null);
+            }
         }
+    }
+
+    _doNotDisturb() {
+        return !this._notificationSettings.get_boolean('show-banners');
     }
 
     _renderPlaceholder(text, iconName, labelText) {
@@ -406,6 +426,7 @@ export default class AgentBarExtension extends Extension {
             this._settingsChangedId = 0;
         }
         this._settings = null;
+        this._notificationSettings = null;
         this._lastView = null;
         this._rows?.clear();
         this._rowProjects?.clear();
