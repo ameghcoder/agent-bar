@@ -8,6 +8,8 @@
 //   usr/lib/agentbar/                            compiled JS, a minimal package.json,
 //                                                and only the runtime dependencies
 //   usr/share/gnome-shell/extensions/<uuid>/     the GNOME Shell extension
+//   usr/share/glib-2.0/schemas/                  its settings schema, compiled by
+//                                                GLib's dpkg trigger
 //
 // It compiles into a private temporary directory, never the checkout's dist/,
 // which a developer's live Claude hooks may be running from. Dependencies are
@@ -107,17 +109,25 @@ try {
   // 5. The extension: hand-written files from the checkout, the portable core
   //    modules from this build (not from the checkout's generated lib/).
   await mkdir(join(extension, 'lib'), { recursive: true });
-  for (const file of ['extension.js', 'metadata.json', 'stylesheet.css', 'lib/focus.js', 'lib/state-reader.js']) {
+  for (const file of ['extension.js', 'prefs.js', 'metadata.json', 'stylesheet.css', 'lib/focus.js', 'lib/settings.js', 'lib/state-reader.js']) {
     await cp(join(extensionSource, file), join(extension, file));
   }
   for (const file of ['vocabulary.js', 'snapshot.js', 'presentation.js']) {
     await cp(join(work, 'dist/src/core', file), join(extension, 'lib', file));
   }
+
+  // 6. The settings schema goes to the system schema directory, not into the
+  //    extension: GNOME Shell reads the system schemas when an extension has
+  //    no schemas/ folder, and GLib's dpkg trigger compiles them, so the
+  //    package still needs no maintainer scripts (ADR 0006).
+  const schemas = join(out, 'usr/share/glib-2.0/schemas');
+  await mkdir(schemas, { recursive: true });
+  await cp(join(root, 'os/linux/schemas/org.gnome.shell.extensions.agentbar.gschema.xml'), join(schemas, 'org.gnome.shell.extensions.agentbar.gschema.xml'));
 } finally {
   await rm(work, { recursive: true, force: true });
 }
 
-// 6. Fixed modes and timestamps, deepest entries first so a directory's own
+// 7. Fixed modes and timestamps, deepest entries first so a directory's own
 //    time is set after its children.
 const names = (await readdir(out, { recursive: true })).sort().reverse();
 for (const name of names) {

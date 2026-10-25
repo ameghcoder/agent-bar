@@ -45,7 +45,7 @@ test('the package holds only system paths, owned by root, and no maintainer scri
   const contents = (await run('dpkg-deb', ['--contents', deb])).stdout.trim().split('\n');
   const paths = contents.map((line) => line.split(/\s+/).slice(5).join(' '));
   assert.ok(contents.every((line) => line.split(/\s+/)[1] === 'root/root'), 'every entry is root/root');
-  assert.ok(paths.every((path) => /^\.\/(usr\/(bin|lib\/agentbar|share\/gnome-shell\/extensions\/agentbar@ameghcoder\.github\.io|share\/doc\/agentbar|share\/man\/man1\/agentbar(-hook)?\.1\.gz|share\/lintian\/overrides\/agentbar)(\/|$| ->)|usr\/?$|usr\/(lib|share|share\/gnome-shell|share\/gnome-shell\/extensions|share\/doc|share\/man|share\/man\/man1|share\/lintian|share\/lintian\/overrides)\/$|\.\/$)/.test(path) || path === './'), paths.join('\n'));
+  assert.ok(paths.every((path) => /^\.\/(usr\/(bin|lib\/agentbar|share\/gnome-shell\/extensions\/agentbar@ameghcoder\.github\.io|share\/doc\/agentbar|share\/man\/man1\/agentbar(-hook)?\.1\.gz|share\/lintian\/overrides\/agentbar|share\/glib-2\.0\/schemas\/org\.gnome\.shell\.extensions\.agentbar\.gschema\.xml)(\/|$| ->)|usr\/?$|usr\/(lib|share|share\/gnome-shell|share\/gnome-shell\/extensions|share\/doc|share\/man|share\/man\/man1|share\/lintian|share\/lintian\/overrides|share\/glib-2\.0|share\/glib-2\.0\/schemas)\/$|\.\/$)/.test(path) || path === './'), paths.join('\n'));
   assert.ok(!paths.some((path) => /home|root\//.test(path)));
   assert.ok(paths.includes('./usr/share/doc/agentbar/copyright'));
   assert.ok(paths.includes('./usr/share/doc/agentbar/changelog.gz'));

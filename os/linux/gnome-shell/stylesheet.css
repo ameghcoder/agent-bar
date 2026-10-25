@@ -24,3 +24,13 @@
 .agentbar-icon-error .popup-menu-icon {
   color: #e01b24;
 }
+
+/* T902: Text only mode. With the icon hidden, the title carries the same two
+ * colours, so a session that needs the developer still stands out. */
+.agentbar-label-attention {
+  color: #e5a50a;
+}
+
+.agentbar-label-error {
+  color: #e01b24;
+}

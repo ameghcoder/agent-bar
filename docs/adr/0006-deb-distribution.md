@@ -29,3 +29,13 @@ and distribution channel exist.
   filename must agree.
 - Removing the package leaves `~/.local/state/agentbar/` and Claude settings
   intact; hook removal is `agentbar uninstall-hooks`, not `apt remove`.
+
+## Note (2026-10-25): the settings schema
+
+The extension's GSettings schema (#49) is installed to
+`/usr/share/glib-2.0/schemas/`, not into the extension's own folder. GLib's
+dpkg file trigger compiles it at install and removal, so the package still
+has no maintainer scripts, and GNOME Shell finds it because the installed
+extension has no `schemas/` folder. This is how Ubuntu's own system
+extensions ship their schemas. A user's chosen settings live in their dconf
+database; removing the package leaves them, like other user data.

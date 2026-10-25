@@ -262,6 +262,32 @@ already startup-safe: `previous === undefined` yields no notifications, so
 enabling the extension never replays old state as new alerts) and `urgency`
 mapped through the table above.
 
+### Settings (T901)
+
+AgentBar's settings are the GNOME extension's own: a GSettings schema,
+`org.gnome.shell.extensions.agentbar` (`os/linux/schemas/`), named in
+`metadata.json`. They never enter the state contract, and `src/core` never
+reads them. `os/linux/gnome-shell/lib/settings.js` holds every choice and
+default as plain data with no imports, shared by `extension.js` and
+`prefs.js` (the settings window, which runs in the Extensions app's process,
+not in GNOME Shell); `test/settings.test.mjs` checks the schema agrees with
+it. Reads go through helpers that return the default for a missing schema, a
+read error, or an unknown value, so a broken settings install can never
+break the indicator. The extension follows `changed::<key>` signals, so a
+change applies live; `disable()` disconnects them.
+
+The package installs the schema to `/usr/share/glib-2.0/schemas/`, where
+GLib's dpkg trigger compiles it, as Ubuntu's own system extensions do. GNOME
+Shell reads the system schemas when an extension has no `schemas/` folder of
+its own, so the extension directory carries none, and the package keeps
+having no maintainer scripts (ADR 0006). For a checkout,
+`os/linux/scripts/extension-dev.sh install` compiles the schema into the
+user's `~/.local/share/glib-2.0/schemas/`.
+
+"Show in top bar" (T902) hides the icon or the title. Icon only keeps the
+whole title as the indicator's accessible name; Text only moves the attention
+and error colours onto the title; a hidden icon never pulses.
+
 ### Animation
 
 The extension pulses the icon's opacity, keyed by `intent`: `attention` pulses

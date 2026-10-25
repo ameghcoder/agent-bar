@@ -79,7 +79,7 @@ test('packing the extension includes its lib/, not just the three top-level file
   await run('os/linux/scripts/extension-dev.sh', ['pack', outDir], { cwd: fileURLToPath(root) });
   const { stdout } = await run('unzip', ['-Z1', join(outDir, 'agentbar@ameghcoder.github.io.shell-extension.zip')]);
   const entries = stdout.trim().split('\n');
-  for (const expected of ['metadata.json', 'extension.js', 'lib/vocabulary.js', 'lib/snapshot.js', 'lib/presentation.js', 'lib/state-reader.js']) {
+  for (const expected of ['metadata.json', 'extension.js', 'prefs.js', 'lib/vocabulary.js', 'lib/snapshot.js', 'lib/presentation.js', 'lib/state-reader.js', 'lib/settings.js', 'schemas/org.gnome.shell.extensions.agentbar.gschema.xml']) {
     assert.ok(entries.includes(expected), `packed zip is missing ${expected}; entries were: ${entries.join(', ')}`);
   }
 });
@@ -121,4 +121,50 @@ test('extension.js focuses a session window only via pickWindow, rechecked on cl
   assert.equal((source.match(/Main\.activateWindow/g) ?? []).length, 1, 'activateWindow has one caller');
   assert.match(source, /pickWindow\(ancestorsOf\(agent\.pid, readProcStat\), windows, projectName\)/);
   assert.doesNotMatch(source, /console\.log\([^)]*title/i);
+});
+
+// T901: the settings window. prefs.js runs in the Extensions app's process,
+// not in GNOME Shell, and must stay as contained as extension.js.
+test('prefs.js is valid ESM that builds the window from Adwaita and the shared settings choices', async () => {
+  const path = new URL('os/linux/gnome-shell/prefs.js', root).pathname;
+  await run(process.execPath, ['--check', path]);
+  const source = await readFile(path, 'utf8');
+  const imports = [...source.matchAll(/^import .* from '([^']+)';$/gm)].map((match) => match[1]);
+  for (const specifier of imports) assert.match(specifier, /^(gi:\/\/|resource:\/\/\/org\/gnome\/Shell\/Extensions\/js\/extensions\/prefs\.js$|\.\/lib\/settings\.js$)/, specifier);
+  assert.match(source, /export default class \w+ extends ExtensionPreferences/);
+  assert.match(source, /fillPreferencesWindow\(window\)/);
+  assert.match(source, /TOP_BAR_CONTENTS/, 'the choices come from lib/settings.js, not a second copy');
+  assert.doesNotMatch(source, /fetch\(|Soup|Gio\.Subprocess|imports\./, 'no network, no subprocesses, no legacy imports');
+});
+
+test('prefs.js shows a readable message instead of failing when the schema is missing', async () => {
+  const source = await readFile(new URL('os/linux/gnome-shell/prefs.js', root), 'utf8');
+  assert.match(source, /try \{\s*settings = this\.getSettings\(\);/);
+});
+
+// T901: a missing or broken schema must never stop the extension.
+test('extension.js reads settings defensively, follows changes live, and lets go of them on disable', async () => {
+  const source = await readFile(new URL('os/linux/gnome-shell/extension.js', root), 'utf8');
+  assert.match(source, /try \{\s*this\._settings = this\.getSettings\(\);/);
+  assert.match(source, /topBarContentFrom\(this\._settings\)/);
+  assert.match(source, /'changed::top-bar-content'/);
+  const disable = source.slice(source.indexOf('    disable() {'));
+  assert.match(disable, /this\._settings\.disconnect\(this\._settingsChangedId\)/);
+  assert.match(disable, /this\._settings = null/);
+});
+
+test('the AgentBar menu opens the settings window', async () => {
+  const source = await readFile(new URL('os/linux/gnome-shell/extension.js', root), 'utf8');
+  assert.match(source, /new PopupMenu\.PopupMenuItem\('Settings'\)/);
+  assert.match(source, /this\.openPreferences\(\)/);
+});
+
+// T902: with the title hidden, screen readers still hear the whole title, and
+// a hidden icon never pulses.
+test('extension.js keeps the full title as the accessible name and skips the pulse for a hidden icon', async () => {
+  const source = await readFile(new URL('os/linux/gnome-shell/extension.js', root), 'utf8');
+  assert.match(source, /this\._indicator\.accessible_name = /);
+  assert.match(source, /topBarParts\(/);
+  const pulse = source.slice(source.indexOf('    _pulseOnce(roundTrips) {'), source.indexOf('    _stopAnimation() {'));
+  assert.match(pulse, /!this\._icon\.visible/);
 });

@@ -39,11 +39,12 @@ jobs:
           persist-credentials: false
 
       # gnome-shell provides `gnome-extensions pack`, which validates the
-      # extension in test/extension.test.mjs.
+      # extension in test/extension.test.mjs; libglib2.0-bin provides
+      # glib-compile-schemas for the strict schema check.
       - name: Install Ubuntu's runtime and test tools
         run: |
           sudo apt-get update
-          sudo apt-get install --yes --no-install-recommends nodejs gjs lintian gnome-shell unzip
+          sudo apt-get install --yes --no-install-recommends nodejs gjs lintian gnome-shell libglib2.0-bin unzip
 
       # The runner ships its own newer Node on PATH. The package depends on
       # Ubuntu's nodejs, so the tests run on that one. pnpm is the version in

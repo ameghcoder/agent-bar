@@ -52,6 +52,8 @@ test('install, activate, upgrade, uninstall hooks, remove, and reinstall keep us
 
   // Clean install; doctor before activation names the remaining user step.
   await dpkg('-i', v1);
+  const schema = join(fakeRoot, 'usr/share/glib-2.0/schemas/org.gnome.shell.extensions.agentbar.gschema.xml');
+  assert.ok(await exists(schema), 'the settings schema is installed for the GLib trigger to compile');
   const before = await agentbar('doctor');
   assert.match(before.stdout, /FAIL Claude hooks .*install-hooks --apply/);
 
@@ -83,6 +85,7 @@ test('install, activate, upgrade, uninstall hooks, remove, and reinstall keep us
   assert.equal(await exists(join(fakeRoot, 'usr/lib/agentbar')), false);
   assert.equal(await exists(join(fakeRoot, 'usr/bin/agentbar')), false);
   assert.equal(await exists(join(fakeRoot, 'usr/share/gnome-shell/extensions/agentbar@ameghcoder.github.io')), false);
+  assert.equal(await exists(schema), false, 'the schema leaves with the package');
   assert.equal(await readFile(join(home, 'state/state.json'), 'utf8'), state, 'user state survives removal');
   assert.ok((await readdir(claude)).some((name) => name.startsWith('settings.json.agentbar-backup-')), 'backups survive removal');
 

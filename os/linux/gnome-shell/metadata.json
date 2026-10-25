@@ -4,5 +4,6 @@
   "description": "Shows Claude Code activity in the GNOME top bar without switching windows.",
   "shell-version": ["50"],
   "url": "https://github.com/ameghcoder/agent-bar",
+  "settings-schema": "org.gnome.shell.extensions.agentbar",
   "version-name": "0.2.0"
 }

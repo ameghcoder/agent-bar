@@ -144,6 +144,19 @@ Three separate steps, from least to most thorough:
 | `Ended` | The Claude process is gone (terminal closed, crash) |
 | `AgentBar - No sessions` | Nothing captured yet, or every session is older than 24 hours |
 
+## Settings
+
+Open AgentBar's settings from its menu (Settings), or from the Extensions app
+(AgentBar, then the settings button).
+
+| Setting | Choices |
+| --- | --- |
+| Show in top bar | Icon and text (default), Icon only, Text only |
+
+Changes apply immediately. With Icon only, screen readers still read the
+whole title; with Text only, "Permission needed" and "Failed" keep their
+colours. Settings stay on your machine, in GNOME's own settings store.
+
 ## Troubleshooting
 
 | Problem | Fix |

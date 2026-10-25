@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- AgentBar's settings. Installed to /usr/share/glib-2.0/schemas/, where
+     GLib's dpkg trigger compiles it. The choices and defaults must match
+     os/linux/gnome-shell/lib/settings.js (test/settings.test.mjs). -->
+<schemalist>
+  <schema id="org.gnome.shell.extensions.agentbar" path="/org/gnome/shell/extensions/agentbar/">
+    <key name="top-bar-content" type="s">
+      <choices>
+        <choice value="icon-and-text"/>
+        <choice value="icon"/>
+        <choice value="text"/>
+      </choices>
+      <default>'icon-and-text'</default>
+      <summary>What the top bar shows</summary>
+      <description>The state icon and the title ("icon-and-text"), only the icon ("icon"), or only the title ("text").</description>
+    </key>
+  </schema>
+</schemalist>

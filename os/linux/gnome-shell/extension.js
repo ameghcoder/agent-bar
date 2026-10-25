@@ -11,6 +11,7 @@ import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 
 import {ancestorsOf, pickWindow} from './lib/focus.js';
+import {topBarContentFrom, topBarParts} from './lib/settings.js';
 import {StateWatcher, readProcStat} from './lib/state-reader.js';
 
 // Rendering only reads `intent` (T302's fixed vocabulary), never `status`, so
@@ -30,6 +31,13 @@ const ICON_BY_INTENT = {
 const STYLE_CLASS_BY_INTENT = {
     attention: 'agentbar-icon-attention',
     error: 'agentbar-icon-error',
+};
+
+// T902: with the icon hidden, the title takes over the same two colours, so
+// "needs you" stays visible in Text only mode.
+const LABEL_STYLE_CLASS_BY_INTENT = {
+    attention: 'agentbar-label-attention',
+    error: 'agentbar-label-error',
 };
 
 // Which intents move, and how. Only brief, finite pulses: while any transition
@@ -142,6 +150,17 @@ export default class AgentBarExtension extends Extension {
             if (this._lastView) this._applyAnimation(this._lastView);
         });
 
+        // T901: settings are the extension's own. A missing or broken schema
+        // leaves every setting at its default instead of failing enable().
+        try {
+            this._settings = this.getSettings();
+        } catch (error) {
+            console.log(`AgentBar: settings unavailable, using defaults - ${error.message}`);
+            this._settings = null;
+        }
+        this._settingsChangedId = this._settings?.connect('changed::top-bar-content', () => this._applyTopBarContent()) ?? 0;
+        this._applyTopBarContent();
+
         this._watcher = new StateWatcher(statePath(), {
             onView: (view) => this._renderView(view),
             onUnavailable: (message) => {
@@ -168,6 +187,9 @@ export default class AgentBarExtension extends Extension {
             St.Clipboard.get_default().set_text(St.ClipboardType.CLIPBOARD, DOCTOR_COMMAND);
         });
         this._indicator.menu.addMenuItem(doctorItem);
+        const settingsItem = new PopupMenu.PopupMenuItem('Settings');
+        settingsItem.connect('activate', () => this.openPreferences());
+        this._indicator.menu.addMenuItem(settingsItem);
         this._indicator.menu.addMenuItem(new PopupMenu.PopupMenuItem(
             `AgentBar ${this.metadata['version-name']}`, {reactive: false}));
     }
@@ -179,9 +201,30 @@ export default class AgentBarExtension extends Extension {
         // presentation.js builds the whole text ("project - State +N"); this
         // only displays it.
         this._label.text = view.title;
+        // Screen readers hear the whole title even when only the icon shows.
+        this._indicator.accessible_name = `AgentBar: ${view.title}`;
+        this._syncLabelStyle();
         this._healthItem.label.text = view.health;
         this._syncSessionRows(view.sessions);
         this._applyAnimation(view);
+    }
+
+    // T902: which of the icon and the title the top bar shows, applied live.
+    _applyTopBarContent() {
+        const parts = topBarParts(topBarContentFrom(this._settings));
+        this._icon.visible = parts.icon;
+        this._label.visible = parts.label;
+        this._syncLabelStyle();
+        // A pulse only runs on a visible icon; restart it for the new layout.
+        this._stopAnimation();
+        this._animationKey = '';
+        if (this._lastView)
+            this._applyAnimation(this._lastView);
+    }
+
+    _syncLabelStyle() {
+        const intent = this._icon.visible ? undefined : this._lastView?.intent;
+        this._label.style_class = `agentbar-indicator-label ${LABEL_STYLE_CLASS_BY_INTENT[intent] ?? ''}`.trim();
     }
 
     _animationsEnabled() {
@@ -214,7 +257,7 @@ export default class AgentBarExtension extends Extension {
     }
 
     _pulseOnce(roundTrips) {
-        if (!this._icon || !this._animationsEnabled())
+        if (!this._icon || !this._icon.visible || !this._animationsEnabled())
             return;
         this._icon.remove_all_transitions();
         this._icon.opacity = 255;
@@ -266,6 +309,8 @@ export default class AgentBarExtension extends Extension {
         this._icon.icon_name = iconName;
         this._icon.style_class = 'system-status-icon';
         this._label.text = labelText;
+        this._indicator.accessible_name = `AgentBar: ${labelText}`;
+        this._syncLabelStyle();
         this._healthItem.label.text = 'State unavailable';
         this._syncSessionRows([]);
         this._placeholder.label.text = text;
@@ -356,6 +401,11 @@ export default class AgentBarExtension extends Extension {
             this._animationsChangedId = 0;
         }
         this._stSettings = null;
+        if (this._settingsChangedId) {
+            this._settings.disconnect(this._settingsChangedId);
+            this._settingsChangedId = 0;
+        }
+        this._settings = null;
         this._lastView = null;
         this._rows?.clear();
         this._rowProjects?.clear();

@@ -51,9 +51,12 @@ test('the staged tree has only the intended files: no sources, maps, typings, or
   assert.deepEqual(modules, ['commander', 'graceful-fs', 'proper-lockfile', 'retry', 'signal-exit']);
   const extension = (await readdir(join(directory, 'usr/share/gnome-shell/extensions', uuid), { recursive: true })).sort();
   assert.deepEqual(extension, [
-    'extension.js', 'lib', 'lib/focus.js', 'lib/presentation.js', 'lib/snapshot.js', 'lib/state-reader.js', 'lib/vocabulary.js',
-    'metadata.json', 'stylesheet.css',
+    'extension.js', 'lib', 'lib/focus.js', 'lib/presentation.js', 'lib/settings.js', 'lib/snapshot.js', 'lib/state-reader.js', 'lib/vocabulary.js',
+    'metadata.json', 'prefs.js', 'stylesheet.css',
   ]);
+  // T901: the schema goes where GLib's dpkg trigger compiles it; no schemas/
+  // folder inside the extension, so GNOME Shell reads the system schema.
+  assert.deepEqual(await readdir(join(directory, 'usr/share/glib-2.0/schemas')), ['org.gnome.shell.extensions.agentbar.gschema.xml']);
   const metadata = JSON.parse(await readFile(join(directory, 'usr/share/gnome-shell/extensions', uuid, 'metadata.json'), 'utf8'));
   assert.equal(metadata['version-name'], version);
   for (const entry of ['usr/lib/agentbar/dist/src/cli/index.js', 'usr/lib/agentbar/dist/agents/claude-code/hooks/claude-hook.js']) {
