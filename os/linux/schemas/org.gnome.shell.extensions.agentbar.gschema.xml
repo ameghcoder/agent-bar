@@ -14,6 +14,15 @@
       <summary>What the top bar shows</summary>
       <description>The state icon and the title ("icon-and-text"), only the icon ("icon"), or only the title ("text").</description>
     </key>
+    <!-- T904: how the top-bar icon moves. -->
+    <key name="icon-animation" type="s">
+      <choices>
+        <choice value="spark"/><choice value="pulse"/><choice value="still"/>
+      </choices>
+      <default>'spark'</default>
+      <summary>How the top-bar icon moves</summary>
+      <description>An animated spark while Claude works ("spark"), the short pulse from 0.2.0 ("pulse"), or no motion ("still").</description>
+    </key>
     <!-- T903: one alert choice per notifying state. -->
     <key name="alert-permission" type="s">
       <choices>

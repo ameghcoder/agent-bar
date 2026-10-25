@@ -13,8 +13,9 @@ import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 
 import {ancestorsOf, pickWindow} from './lib/focus.js';
+import {SPARK_FRAME_COUNT, SPARK_FRAME_MS, iconMotion, sparkAllowed, sparkFrame} from './lib/icon-animation.js';
 import {notificationsFor} from './lib/presentation.js';
-import {alertChoiceFrom, planAlerts, testAlertStatus, topBarContentFrom, topBarParts} from './lib/settings.js';
+import {alertChoiceFrom, iconAnimationFrom, planAlerts, testAlertStatus, topBarContentFrom, topBarParts} from './lib/settings.js';
 import {installedVersion, needsRelogin} from './lib/upgrade.js';
 import {StateWatcher, readProcStat} from './lib/state-reader.js';
 
@@ -56,6 +57,17 @@ const PULSE_BY_INTENT = {
 };
 const PULSE_LOW_OPACITY = 90;
 const PULSE_HALF_MS = 700;
+
+// T904: the animated spark loops while Claude works, so it is a GLib timer
+// swapping SVG frames (lib/icon-animation.js), never an endless ease(): the
+// constraint above applies to transitions, and a frame swap is one redraw of
+// one small icon. It stops whenever it cannot be seen. "Turn complete" pops
+// once and "Failed" shakes once, both finite.
+const POP_START_SCALE = 0.6;
+const POP_MS = 400;
+const SHAKE_PX = 3;
+const SHAKE_HALF_MS = 60;
+const SHAKE_HALF_COUNT = 6;
 
 const DOCTOR_COMMAND = 'agentbar doctor';
 // dpkg replaces many files in a row; check the version once it has settled.
@@ -154,11 +166,16 @@ export default class AgentBarExtension extends Extension {
         this._pulseTimer = 0;
         this._lastView = null;
         this._stSettings = St.Settings.get();
-        this._animationsChangedId = this._stSettings.connect('notify::enable-animations', () => {
-            this._stopAnimation();
-            this._animationKey = '';
-            if (this._lastView) this._applyAnimation(this._lastView);
-        });
+        this._animationsChangedId = this._stSettings.connect('notify::enable-animations', () => this._restartAnimation());
+        this._motion = 'none';
+        this._sparkTimer = 0;
+        this._sparkTick = 0;
+        this._sparkIcons = Array.from({length: SPARK_FRAME_COUNT}, (_, index) =>
+            Gio.FileIcon.new(this.dir.get_child('icons').get_child(`agentbar-spark-${index}-symbolic.svg`)));
+        // The spark pauses while a fullscreen window covers the panel and
+        // while the screen is locked.
+        this._fullscreenChangedId = global.display.connect('in-fullscreen-changed', () => this._syncSpark());
+        this._sessionModeChangedId = Main.sessionMode.connect('updated', () => this._syncSpark());
 
         // T901: settings are the extension's own. A missing or broken schema
         // leaves every setting at its default instead of failing enable().
@@ -176,6 +193,7 @@ export default class AgentBarExtension extends Extension {
         this._notificationSettings = new Gio.Settings({schema_id: 'org.gnome.desktop.notifications'});
         this._lastSoundAt = -Infinity;
         this._testAlertChangedId = this._settings?.connect('changed::test-alert', () => this._runTestAlert()) ?? 0;
+        this._iconAnimationChangedId = this._settings?.connect('changed::icon-animation', () => this._restartAnimation()) ?? 0;
 
         // T905: when the installed files change version (an apt upgrade),
         // ask for a logout. Only the extension's own folder is watched; no
@@ -226,7 +244,10 @@ export default class AgentBarExtension extends Extension {
 
     _renderView(view) {
         this._lastView = view;
-        this._icon.icon_name = ICON_BY_INTENT[view.intent] ?? ICON_BY_INTENT.unknown;
+        // While the spark runs it owns the icon; _stopAnimation puts the
+        // state's icon back.
+        if (!this._sparkTimer)
+            this._icon.icon_name = ICON_BY_INTENT[view.intent] ?? ICON_BY_INTENT.unknown;
         this._icon.style_class = `system-status-icon ${STYLE_CLASS_BY_INTENT[view.intent] ?? ''}`.trim();
         // presentation.js builds the whole text ("project - State +N"); this
         // only displays it.
@@ -245,7 +266,11 @@ export default class AgentBarExtension extends Extension {
         this._icon.visible = parts.icon;
         this._label.visible = parts.label;
         this._syncLabelStyle();
-        // A pulse only runs on a visible icon; restart it for the new layout.
+        // Motion only runs on a visible icon; restart it for the new layout.
+        this._restartAnimation();
+    }
+
+    _restartAnimation() {
         this._stopAnimation();
         this._animationKey = '';
         if (this._lastView)
@@ -264,26 +289,105 @@ export default class AgentBarExtension extends Extension {
             && !Main.layoutManager.primaryMonitor?.inFullscreen;
     }
 
-    // Starts, keeps, or stops the pulse for this view. The key is the intent,
-    // status, and leading session - deliberately not the title, whose time-ago
-    // text changes every minute. A new project or state pulses again; an
-    // identical re-read (every state write, every 30 s) does not restart it.
+    // Starts, keeps, or stops the motion for this view (T904: iconMotion
+    // picks it from the state and the user's "Icon" choice). The key is the
+    // motion, intent, status, and leading session - deliberately not the
+    // title, whose time-ago text changes every minute. A new project or state
+    // moves again; an identical re-read (every state write, every 30 s) does
+    // not restart it.
     _applyAnimation(view) {
-        const pulse = PULSE_BY_INTENT[view.intent];
-        const key = pulse ? `${view.intent}|${view.status}|${view.leaderId}` : '';
+        const motion = iconMotion(view, iconAnimationFrom(this._settings));
+        const key = motion === 'none' ? '' : `${motion}|${view.intent}|${view.status}|${view.leaderId}`;
         if (key === this._animationKey)
             return;
         this._stopAnimation();
         this._animationKey = key;
-        if (!pulse)
+        this._motion = motion;
+        if (motion === 'spark') {
+            this._syncSpark();
+        } else if (motion === 'pop') {
+            this._popOnce();
+        } else if (motion === 'shake') {
+            this._shakeOnce();
+        } else if (motion === 'pulse') {
+            const pulse = PULSE_BY_INTENT[view.intent];
+            if (!pulse)
+                return;
+            this._pulseOnce(pulse.roundTrips);
+            if (pulse.everySeconds > 0) {
+                this._pulseTimer = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, pulse.everySeconds, () => {
+                    this._pulseOnce(pulse.roundTrips);
+                    return GLib.SOURCE_CONTINUE;
+                });
+            }
+        }
+    }
+
+    // Starts or stops the spark's frame timer to match whether it can be
+    // seen. Called when the motion, fullscreen, lock, or icon visibility
+    // changes.
+    _syncSpark() {
+        if (!this._icon)
             return;
-        this._pulseOnce(pulse.roundTrips);
-        if (pulse.everySeconds > 0) {
-            this._pulseTimer = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, pulse.everySeconds, () => {
-                this._pulseOnce(pulse.roundTrips);
+        const wanted = this._motion === 'spark' && sparkAllowed({
+            animationsEnabled: this._stSettings.enable_animations,
+            fullscreen: Boolean(Main.layoutManager.primaryMonitor?.inFullscreen),
+            locked: Main.sessionMode.isLocked,
+            iconVisible: this._icon.visible,
+        });
+        if (wanted && !this._sparkTimer) {
+            this._sparkTick = 0;
+            this._showSparkFrame();
+            this._sparkTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, SPARK_FRAME_MS, () => {
+                this._showSparkFrame();
                 return GLib.SOURCE_CONTINUE;
             });
+        } else if (!wanted && this._sparkTimer) {
+            this._stopSpark();
         }
+    }
+
+    _showSparkFrame() {
+        this._icon.gicon = this._sparkIcons[sparkFrame(this._sparkTick)];
+        this._sparkTick += 1;
+    }
+
+    _stopSpark() {
+        GLib.Source.remove(this._sparkTimer);
+        this._sparkTimer = 0;
+        this._icon.icon_name = ICON_BY_INTENT[this._lastView?.intent] ?? ICON_BY_INTENT.quiet;
+    }
+
+    // "Turn complete": the icon grows into place once.
+    _popOnce() {
+        if (!this._icon.visible || !this._animationsEnabled())
+            return;
+        this._icon.set_pivot_point(0.5, 0.5);
+        this._icon.set_scale(POP_START_SCALE, POP_START_SCALE);
+        this._icon.ease({
+            scale_x: 1,
+            scale_y: 1,
+            duration: POP_MS,
+            mode: Clutter.AnimationMode.EASE_OUT_BACK,
+        });
+    }
+
+    // "Failed": three small nudges, then rest.
+    _shakeOnce() {
+        if (!this._icon.visible || !this._animationsEnabled())
+            return;
+        this._icon.translation_x = 0;
+        this._icon.ease({
+            translation_x: SHAKE_PX,
+            duration: SHAKE_HALF_MS,
+            mode: Clutter.AnimationMode.EASE_IN_OUT_SINE,
+            repeatCount: SHAKE_HALF_COUNT - 1,
+            autoReverse: true,
+            onComplete: () => {
+                if (this._icon)
+                    this._icon.translation_x = 0;
+            },
+        });
     }
 
     _pulseOnce(roundTrips) {
@@ -310,9 +414,14 @@ export default class AgentBarExtension extends Extension {
             GLib.Source.remove(this._pulseTimer);
             this._pulseTimer = 0;
         }
+        if (this._sparkTimer)
+            this._stopSpark();
+        this._motion = 'none';
         if (this._icon) {
             this._icon.remove_all_transitions();
             this._icon.opacity = 255;
+            this._icon.set_scale(1, 1);
+            this._icon.translation_x = 0;
         }
     }
 
@@ -514,6 +623,15 @@ export default class AgentBarExtension extends Extension {
         }
         this._reloginItem = null;
         this._stopAnimation();
+        if (this._fullscreenChangedId) {
+            global.display.disconnect(this._fullscreenChangedId);
+            this._fullscreenChangedId = 0;
+        }
+        if (this._sessionModeChangedId) {
+            Main.sessionMode.disconnect(this._sessionModeChangedId);
+            this._sessionModeChangedId = 0;
+        }
+        this._sparkIcons = null;
         if (this._animationsChangedId) {
             this._stSettings.disconnect(this._animationsChangedId);
             this._animationsChangedId = 0;
@@ -526,6 +644,10 @@ export default class AgentBarExtension extends Extension {
         if (this._testAlertChangedId) {
             this._settings.disconnect(this._testAlertChangedId);
             this._testAlertChangedId = 0;
+        }
+        if (this._iconAnimationChangedId) {
+            this._settings.disconnect(this._iconAnimationChangedId);
+            this._iconAnimationChangedId = 0;
         }
         this._settings = null;
         this._notificationSettings = null;

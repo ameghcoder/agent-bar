@@ -27,6 +27,23 @@ export function topBarContentFrom(settings) {
     }
 }
 
+// T904: how the top-bar icon moves (see lib/icon-animation.js).
+export const ICON_ANIMATIONS = [
+    {id: 'spark', label: 'Animated spark'},
+    {id: 'pulse', label: 'Simple pulse'},
+    {id: 'still', label: 'Still'},
+];
+export const DEFAULT_ICON_ANIMATION = 'spark';
+
+export function iconAnimationFrom(settings) {
+    try {
+        const value = settings?.get_string('icon-animation');
+        return ICON_ANIMATIONS.some(choice => choice.id === value) ? value : DEFAULT_ICON_ANIMATION;
+    } catch {
+        return DEFAULT_ICON_ANIMATION;
+    }
+}
+
 // T903: alerts per state. One choice per notifying state decides whether its
 // banner shows and whether its sound plays. The top bar and the menu always
 // show the true state whatever is chosen here.

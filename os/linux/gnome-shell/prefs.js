@@ -4,7 +4,7 @@ import Gtk from 'gi://Gtk';
 
 import {ExtensionPreferences} from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
-import {ALERT_CHOICES, ALERT_STATES, TOP_BAR_CONTENTS, alertChoiceFrom, testAlertRequest, topBarContentFrom} from './lib/settings.js';
+import {ALERT_CHOICES, ALERT_STATES, ICON_ANIMATIONS, TOP_BAR_CONTENTS, alertChoiceFrom, iconAnimationFrom, testAlertRequest, topBarContentFrom} from './lib/settings.js';
 
 // T901: AgentBar's settings window, opened from the Extensions app or the
 // AgentBar menu. It runs in the Extensions app's process, not in GNOME Shell.
@@ -41,7 +41,7 @@ export default class AgentBarPreferences extends ExtensionPreferences {
         window.add(page);
     }
 
-    // T902: "Show in top bar".
+    // T902: "Show in top bar"; T904: "Icon".
     _topBarGroup(window, settings) {
         const group = new Adw.PreferencesGroup({title: 'Top bar'});
         group.add(this._choiceRow(window, settings, {
@@ -50,6 +50,14 @@ export default class AgentBarPreferences extends ExtensionPreferences {
             choices: TOP_BAR_CONTENTS,
             read: () => topBarContentFrom(settings),
         }));
+        const icon = this._choiceRow(window, settings, {
+            title: 'Icon',
+            key: 'icon-animation',
+            choices: ICON_ANIMATIONS,
+            read: () => iconAnimationFrom(settings),
+        });
+        icon.subtitle = 'Stale and ended sessions never move. "Reduce animation" in GNOME stops all motion.';
+        group.add(icon);
         return group;
     }
 

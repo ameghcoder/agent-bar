@@ -6,10 +6,13 @@ import test from 'node:test';
 import {
   ALERT_CHOICES,
   ALERT_STATES,
+  DEFAULT_ICON_ANIMATION,
   DEFAULT_TOP_BAR_CONTENT,
+  ICON_ANIMATIONS,
   SCHEMA_ID,
   TOP_BAR_CONTENTS,
   alertChoiceFrom,
+  iconAnimationFrom,
   planAlerts,
   testAlertRequest,
   testAlertStatus,
@@ -56,7 +59,7 @@ test('the schema file declares exactly the choices and default the extension use
   assert.equal(/<default>'([^']+)'<\/default>/.exec(key)?.[1], DEFAULT_TOP_BAR_CONTENT);
   // Only keys a shipped task uses (M7 rule).
   assert.deepEqual([...xml.matchAll(/<key name="([^"]+)"/g)].map((match) => match[1]),
-    ['top-bar-content', ...ALERT_STATES.map((state) => state.key), 'test-alert']);
+    ['top-bar-content', 'icon-animation', ...ALERT_STATES.map((state) => state.key), 'test-alert']);
 });
 
 test('every alert key in the schema offers the shared choices and the state\'s own default', async () => {
@@ -154,4 +157,19 @@ test('a test request names one known state and changes on every press', () => {
   assert.equal(testAlertStatus('running@5'), null, 'only states that alert');
   assert.equal(testAlertStatus('garbage'), null);
   assert.equal(testAlertStatus(null), null);
+});
+
+// T904: the "Icon" choice.
+test('the icon animation choice is spark, pulse, or still, defaulting to the spark, and the schema agrees', async () => {
+  assert.deepEqual(ICON_ANIMATIONS.map((choice) => [choice.id, choice.label]), [['spark', 'Animated spark'], ['pulse', 'Simple pulse'], ['still', 'Still']]);
+  assert.equal(DEFAULT_ICON_ANIMATION, 'spark');
+  for (const id of ['spark', 'pulse', 'still']) assert.equal(iconAnimationFrom({ get_string: () => id }), id);
+  assert.equal(iconAnimationFrom(null), 'spark');
+  assert.equal(iconAnimationFrom({ get_string: () => 'disco' }), 'spark');
+  assert.equal(iconAnimationFrom({ get_string: () => { throw new Error('missing'); } }), 'spark');
+  const xml = await readFile(schemaPath, 'utf8');
+  const key = /<key name="icon-animation" type="s">([\s\S]*?)<\/key>/.exec(xml)?.[1];
+  assert.ok(key);
+  assert.deepEqual([...key.matchAll(/<choice value="([^"]+)"\/>/g)].map((match) => match[1]), ICON_ANIMATIONS.map((choice) => choice.id));
+  assert.equal(/<default>'([^']+)'<\/default>/.exec(key)?.[1], DEFAULT_ICON_ANIMATION);
 });

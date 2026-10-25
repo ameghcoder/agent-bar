@@ -36,7 +36,7 @@ case "${1:-help}" in
     out="${2:-/tmp}"
     # lib/ holds generated files (see os/linux/scripts/copy-extension-lib.mjs);
     # gnome-extensions pack does not include subdirectories unless told to.
-    gnome-extensions pack --force --out-dir "$out" --extra-source="$src/lib" --schema="$schema" "$src" && echo "packed to $out" ;;
+    gnome-extensions pack --force --out-dir "$out" --extra-source="$src/lib" --extra-source="$src/icons" --schema="$schema" "$src" && echo "packed to $out" ;;
   *)
     echo "usage: $0 install|uninstall|enable|disable|status|logs|devkit|pack [dir]" >&2
     exit 2 ;;

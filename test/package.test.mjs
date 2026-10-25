@@ -51,7 +51,7 @@ test('the staged tree has only the intended files: no sources, maps, typings, or
   assert.deepEqual(modules, ['commander', 'graceful-fs', 'proper-lockfile', 'retry', 'signal-exit']);
   const extension = (await readdir(join(directory, 'usr/share/gnome-shell/extensions', uuid), { recursive: true })).sort();
   assert.deepEqual(extension, [
-    'extension.js', 'lib', 'lib/focus.js', 'lib/presentation.js', 'lib/settings.js', 'lib/snapshot.js', 'lib/state-reader.js', 'lib/upgrade.js', 'lib/vocabulary.js',
+    'extension.js', 'icons', ...[0, 1, 2, 3, 4, 5].map((index) => `icons/agentbar-spark-${index}-symbolic.svg`), 'lib', 'lib/focus.js', 'lib/presentation.js', 'lib/settings.js', 'lib/snapshot.js', 'lib/state-reader.js', 'lib/upgrade.js', 'lib/vocabulary.js',
     'metadata.json', 'prefs.js', 'stylesheet.css',
   ]);
   // T901: the schema goes where GLib's dpkg trigger compiles it; no schemas/

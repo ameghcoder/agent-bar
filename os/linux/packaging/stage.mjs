@@ -115,6 +115,8 @@ try {
   for (const file of ['vocabulary.js', 'snapshot.js', 'presentation.js']) {
     await cp(join(work, 'dist/src/core', file), join(extension, 'lib', file));
   }
+  // T904: the spark's SVG frames.
+  await cp(join(extensionSource, 'icons'), join(extension, 'icons'), { recursive: true });
 
   // 6. The settings schema goes to the system schema directory, not into the
   //    extension: GNOME Shell reads the system schemas when an extension has

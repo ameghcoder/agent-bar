@@ -158,8 +158,14 @@ Open AgentBar's settings from its menu (Settings), or from the Extensions app
 | Setting | Choices |
 | --- | --- |
 | Show in top bar | Icon and text (default), Icon only, Text only |
+| Icon | Animated spark (default), Simple pulse, Still |
 | Alerts: Permission needed, Waiting for you, Failed | Banner and sound (default), Banner only, Sound only, Top bar only |
 | Alerts: Turn complete | Banner only (default), Banner and sound, Sound only, Top bar only |
+
+With Animated spark, the icon spins a small spark while Claude works, pulses
+when it needs you, pops once when a turn completes, and shakes once when a
+turn fails. Stale and ended sessions never move, and the spark pauses in
+fullscreen, on the lock screen, and when GNOME's "Reduce animation" is on.
 
 Changes apply immediately. With Icon only, screen readers still read the
 whole title; with Text only, "Permission needed" and "Failed" keep their

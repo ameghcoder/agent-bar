@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- AgentBar spark, frame 2 of 6 (T904). Symbolic: GNOME recolours it to the panel text colour. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
+  <g fill="#2e3436">
+    <rect x="7.2" y="3" width="1.6" height="5" rx="0.8" transform="rotate(0 8 8)"/>
+    <rect x="7.2" y="3" width="1.6" height="5" rx="0.8" transform="rotate(45 8 8)"/>
+    <rect x="7.2" y="3" width="1.6" height="5" rx="0.8" transform="rotate(90 8 8)"/>
+    <rect x="7.2" y="3" width="1.6" height="5" rx="0.8" transform="rotate(135 8 8)"/>
+    <rect x="7.2" y="3" width="1.6" height="5" rx="0.8" transform="rotate(180 8 8)"/>
+    <rect x="7.2" y="3" width="1.6" height="5" rx="0.8" transform="rotate(225 8 8)"/>
+    <rect x="7.2" y="3" width="1.6" height="5" rx="0.8" transform="rotate(270 8 8)"/>
+    <rect x="7.2" y="3" width="1.6" height="5" rx="0.8" transform="rotate(315 8 8)"/>
+    <circle cx="8" cy="8" r="1.2"/>
+  </g>
+</svg>

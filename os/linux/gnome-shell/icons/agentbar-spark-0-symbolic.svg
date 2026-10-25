@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- AgentBar spark, frame 0 of 6 (T904). Symbolic: GNOME recolours it to the panel text colour. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
+  <g fill="#2e3436">
+    <circle cx="8" cy="8" r="2"/>
+  </g>
+</svg>

@@ -317,6 +317,19 @@ and error colours onto the title; a hidden icon never pulses.
 
 ### Animation
 
+T904 adds an "Icon" setting: Animated spark (default), Simple pulse (the
+behaviour described below), or Still. `lib/icon-animation.js` decides the
+motion from the view and that choice: with the spark, a fresh Working session
+spins, `attention` pulses, `complete` pops once, and `error` shakes once.
+Stale sessions never move, under any choice. The spark is a GLib timer that
+swaps six symbolic SVG frames (`icons/`) every 120 ms, not an endless
+`ease()`, so the constraint below does not apply to it. It runs only while it
+can be seen: never in fullscreen (`in-fullscreen-changed`), on the lock screen
+(`Main.sessionMode` `updated`), with `enable-animations` off, or with the
+icon hidden. Measured in a nested GNOME Shell 50.1, it adds about 8
+main-thread wake-ups per second and about 0.25% of one core, and pausing
+removes both.
+
 The extension pulses the icon's opacity, keyed by `intent`: `attention` pulses
 three times once per new project/state, `active` ("Working") pulses once every
 8 seconds, and every other intent, including stale, stays still. Pulses are

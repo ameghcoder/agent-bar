@@ -79,7 +79,7 @@ test('packing the extension includes its lib/, not just the three top-level file
   await run('os/linux/scripts/extension-dev.sh', ['pack', outDir], { cwd: fileURLToPath(root) });
   const { stdout } = await run('unzip', ['-Z1', join(outDir, 'agentbar@ameghcoder.github.io.shell-extension.zip')]);
   const entries = stdout.trim().split('\n');
-  for (const expected of ['metadata.json', 'extension.js', 'prefs.js', 'lib/vocabulary.js', 'lib/snapshot.js', 'lib/presentation.js', 'lib/state-reader.js', 'lib/settings.js', 'lib/upgrade.js', 'schemas/org.gnome.shell.extensions.agentbar.gschema.xml']) {
+  for (const expected of ['metadata.json', 'extension.js', 'prefs.js', 'lib/vocabulary.js', 'lib/snapshot.js', 'lib/presentation.js', 'lib/state-reader.js', 'lib/settings.js', 'lib/upgrade.js', 'icons/agentbar-spark-0-symbolic.svg', 'schemas/org.gnome.shell.extensions.agentbar.gschema.xml']) {
     assert.ok(entries.includes(expected), `packed zip is missing ${expected}; entries were: ${entries.join(', ')}`);
   }
 });
@@ -229,4 +229,39 @@ test('a Turn complete banner the user chose is shown: AgentBar low maps to GNOME
   const table = source.slice(source.indexOf('const SHELL_URGENCY = {'), source.indexOf('};', source.indexOf('const SHELL_URGENCY = {')));
   assert.match(table, /low: MessageTray\.Urgency\.NORMAL/);
   assert.doesNotMatch(source, /Urgency\.LOW/);
+});
+
+// T904: the spark swaps frames on a timer (never an endless ease()), pauses
+// whenever it cannot be seen, and is cleaned up on disable.
+test('extension.js drives the spark from a frame timer that pauses when unseen and is removed on disable', async () => {
+  const source = await readFile(new URL('os/linux/gnome-shell/extension.js', root), 'utf8');
+  assert.match(source, /iconMotion\(view, iconAnimationFrom\(this\._settings\)\)/);
+  assert.match(source, /sparkAllowed\(\{/);
+  assert.match(source, /SPARK_FRAME_MS/);
+  assert.match(source, /Gio\.FileIcon\.new\(/);
+  assert.match(source, /'in-fullscreen-changed'/);
+  assert.match(source, /Main\.sessionMode\.connect\('updated'/);
+  assert.match(source, /'changed::icon-animation'/);
+  const disable = source.slice(source.indexOf('    disable() {'));
+  assert.match(disable, /global\.display\.disconnect\(this\._fullscreenChangedId\)/);
+  assert.match(disable, /Main\.sessionMode\.disconnect\(this\._sessionModeChangedId\)/);
+  const stop = source.slice(source.indexOf('    _stopAnimation() {'), source.indexOf('    _stopAnimation() {') + 700);
+  assert.match(stop, /this\._sparkTimer/);
+});
+
+test('the spark frames ship as symbolic SVGs, so they follow the panel colour', async () => {
+  const { readdir } = await import('node:fs/promises');
+  const icons = (await readdir(new URL('os/linux/gnome-shell/icons/', root))).sort();
+  assert.deepEqual(icons, [0, 1, 2, 3, 4, 5].map((index) => `agentbar-spark-${index}-symbolic.svg`));
+  for (const icon of icons) {
+    const svg = await readFile(new URL(`os/linux/gnome-shell/icons/${icon}`, root), 'utf8');
+    assert.match(svg, /viewBox="0 0 16 16"/, icon);
+    assert.doesNotMatch(svg, /<script|href=|xlink/i, `${icon} is plain shapes`);
+  }
+});
+
+test('prefs.js offers the Icon choice in the Top bar group', async () => {
+  const source = await readFile(new URL('os/linux/gnome-shell/prefs.js', root), 'utf8');
+  assert.match(source, /ICON_ANIMATIONS/);
+  assert.match(source, /key: 'icon-animation'/);
 });
