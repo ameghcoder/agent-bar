@@ -32,7 +32,8 @@ a throwaway root; this list covers what only a real desktop can show.
 8. A Claude prompt that runs a tool shows `<project> - Working - just now`.
 9. A permission prompt shows "Permission needed", pulses, and raises one
    banner while another application has focus.
-10. The end of a turn shows "Turn complete" and one low-urgency banner.
+10. The end of a turn shows "Turn complete" and one banner (the default
+    Turn complete alert is Banner only; Settings, Alerts, Test shows it on demand).
 11. A failing command (`exit 3`) keeps "Working"; no "Failed" banner.
 12. Closing the Claude terminal turns the row to "Ended" within about 10 s.
 13. Clicking a live session's row brings its window forward.

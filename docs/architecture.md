@@ -252,7 +252,10 @@ collapses `waiting` and `permission_required` into the same value and
 urgency must not. `notificationsFor` (`src/core/presentation.ts`) decides it
 explicitly per status - `permission_required` critical, `failed` high,
 `waiting` normal, `completed` low - so the rule stays pure and tested, and
-the extension's job is only the GNOME enum lookup.
+the extension's job is only the GNOME enum lookup. One exception in that
+lookup: GNOME's `Urgency.LOW` never shows a banner, and a notification's sound
+plays only with its banner, so `low` maps to GNOME's NORMAL. Whether a banner
+shows is the user's per-state alert choice (T903).
 
 Desktop notifications go through one long-lived `MessageTray.Source` titled
 "AgentBar" (created on `enable()`, destroyed on `disable()`); each

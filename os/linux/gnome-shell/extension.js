@@ -63,11 +63,15 @@ const UPGRADE_CHECK_DELAY_MS = 2000;
 
 // presentation.ts decides urgency (ADR 0004: permission gets the strongest
 // tier without repeatedly stealing focus); this is only the GNOME enum lookup.
+// GNOME's LOW never shows a banner, and a notification's sound plays only with
+// its banner (GNOME Shell 50 messageTray.js). Whether a banner shows is the
+// user's per-state choice (T903), so 'low' maps to NORMAL; "Top bar only" is
+// how a user asks for no banner.
 const SHELL_URGENCY = {
     critical: MessageTray.Urgency.CRITICAL,
     high: MessageTray.Urgency.HIGH,
     normal: MessageTray.Urgency.NORMAL,
-    low: MessageTray.Urgency.LOW,
+    low: MessageTray.Urgency.NORMAL,
 };
 
 function statePath() {

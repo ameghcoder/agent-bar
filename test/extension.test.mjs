@@ -219,3 +219,14 @@ test('prefs.js puts a Test button on every alert row and confirms what it did', 
   assert.match(source, /testAlertRequest\(state\.status/);
   assert.match(source, /add_toast\(/);
 });
+
+// GNOME Shell 50 never shows a banner for Urgency.LOW (messageTray.js), and a
+// notification's sound only plays with its banner. Whether a banner shows is
+// the user's per-state choice now, so AgentBar's 'low' (Turn complete) must
+// not map to GNOME's LOW, or "Banner only" and "Banner and sound" do nothing.
+test('a Turn complete banner the user chose is shown: AgentBar low maps to GNOME normal', async () => {
+  const source = await readFile(new URL('os/linux/gnome-shell/extension.js', root), 'utf8');
+  const table = source.slice(source.indexOf('const SHELL_URGENCY = {'), source.indexOf('};', source.indexOf('const SHELL_URGENCY = {')));
+  assert.match(table, /low: MessageTray\.Urgency\.NORMAL/);
+  assert.doesNotMatch(source, /Urgency\.LOW/);
+});
